@@ -9,13 +9,13 @@
 - **解决**：文件保存为 UTF-8 with BOM（或用 pwsh 7 运行）。
 - **验证**：用 `powershell -NoProfile -ExecutionPolicy Bypass -File start_all.ps1` 实测（勿只用 pwsh 解析，测不出 5.1 的问题）。
 
-## 2. AI 报告在网页上无法正常显示（未修复，见 ROADMAP）
+## 2. AI 报告在网页上无法正常显示（部分修复）
 
 - **现象**：AI 诊断/对话内容空白，或只显示 `**加粗**`、`## 标题` 等原始 Markdown。
-- **疑似原因**：
-  - 前端用 CDN 加载 marked.js（cdn.jsdelivr.net），国内可能被墙 → `marked` 未定义 → 渲染失败。
-  - 后端 `ask_question` 开启 DeepSeek thinking 模式，`content` 可能为空、内容在 `reasoning_content` 里。
-- **备注**：曾实现"离线 Markdown 兜底 + 空 content 回退"的修复，后已撤销；需要时可按 `docs/patches/2026-08-31_修复AI报告Markdown显示/` 里的方案重新应用。
+- **原因与状态**：
+  - ✅ **CDN marked.js 被墙**（cdn.jsdelivr.net）→ 已修复（2026-08-31）：marked.min.js 下载到 `static/js/marked.min.js` 本地化，并加 `simpleMd()` 极简兜底渲染。
+  - ⏳ **DeepSeek thinking 模式 content 可能为空**（内容在 `reasoning_content`）→ 仍待确认/处理。
+- **备注**：曾实现"空 content 回退"修复后已撤销；需要时可按 `docs/patches/2026-08-31_修复AI报告Markdown显示/` 里的方案重新应用。
 
 ## 3. ffmpeg 手动安装后新终端找不到
 
@@ -39,3 +39,9 @@
 ## 6. README.md 与 AGENTS.md 环境信息不一致
 
 - README 写的是 conda + Python 3.9（过时）；当前以 AGENTS.md 为准：venv + Python 3.11。
+
+## 7. Flask 默认静态目录是项目根 static/
+
+- **现象**：`<script src="/static/js/xxx.js">` 返回 404。
+- **原因**：Flask 默认 static 路由指向**项目根** `static/` 目录，不是 `templates/static/`。
+- **解决**：静态文件放项目根 `static/` 下（2026-08-31 已将 marked.min.js 放在 `static/js/marked.min.js`）。

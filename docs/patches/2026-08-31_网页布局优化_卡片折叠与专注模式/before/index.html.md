@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智慧渔业水下协同控制系统</title>
-    <!-- 引入本地 Marked.js 渲染 AI 返回的 Markdown（避免 CDN 被墙导致不渲染） -->
-    <script src="/static/js/marked.min.js"></script>
+    <!-- 引入 Marked.js 用于渲染 AI 返回的 Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         /* 定义全局 CSS 变量 */
         :root { 
@@ -81,24 +81,6 @@
             margin-top: 0; color: var(--text-main); font-size: 13px; font-weight: 600;
             margin-bottom: 6px; border-left: 3px solid var(--accent); padding-left: 8px;
         }
-
-        /* 卡片折叠 */
-        .card-head {
-            display: flex; align-items: center; justify-content: space-between;
-            cursor: pointer; user-select: none; margin-bottom: 6px;
-        }
-        .card-head h3 { margin-bottom: 0; flex: 1; }
-        .card-toggle {
-            width: 26px; height: 26px; min-width: 26px; padding: 0;
-            border: 1px solid var(--border-color); border-radius: 4px;
-            background: #f8fafc; color: var(--text-muted); font-size: 14px; line-height: 1;
-            cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
-            white-space: nowrap;
-        }
-        .card-toggle:hover { background: #e2e8f0; color: var(--text-main); }
-        /* 专注按钮：文字横排、宽度自适应，仅用文字区分状态（不变色） */
-        #chatFocusBtn { width: auto; padding: 0 10px; }
-        .card.collapsed .card-body { display: none; }
         
         button { 
             width: 100%; padding: 8px; font-size: 12px; font-weight: 500; 
@@ -229,13 +211,6 @@
         .control-group { display: flex; flex-direction: column; gap: 8px; }
         .side-panel::-webkit-scrollbar { width: 4px; }
         .side-panel::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-
-        /* 专注模式：隐藏左侧视频区与其他卡片，对话区占满全屏 */
-        body.chat-focus .video-section,
-        body.chat-focus .resize-handle { display: none; }
-        body.chat-focus .side-panel { flex: 1 1 0; max-width: none; }
-        body.chat-focus .side-panel .card:not(.chat-card) { display: none; }
-        body.chat-focus .chat-card .msg { max-width: 80%; }
     </style>
 </head>
 <body>
@@ -269,51 +244,37 @@
 
         <div class="side-panel">
             <!-- 传感器卡片 -->
-            <div class="card" data-collapsible>
-                <div class="card-head" data-toggle>
-                    <h3>环境实时指标 (IoT)</h3>
-                    <button class="card-toggle" title="折叠/展开">−</button>
-                </div>
-                <div class="card-body">
-                    <div class="sensor-grid">
-                        <div class="sensor-item">
-                            <div class="sensor-label">水温</div>
-                            <div class="sensor-value"><span id="sensor-temp">--</span><span class="sensor-unit">°C</span></div>
-                        </div>
-                        <div class="sensor-item">
-                            <div class="sensor-label">pH值</div>
-                            <div class="sensor-value"><span id="sensor-ph">--</span></div>
-                        </div>
-                        <div class="sensor-item">
-                            <div class="sensor-label">溶解氧</div>
-                            <div class="sensor-value"><span id="sensor-oxygen">--</span><span class="sensor-unit">mg/L</span></div>
-                        </div>
+            <div class="card">
+                <h3>环境实时指标 (IoT)</h3>
+                <div class="sensor-grid">
+                    <div class="sensor-item">
+                        <div class="sensor-label">水温</div>
+                        <div class="sensor-value"><span id="sensor-temp">--</span><span class="sensor-unit">°C</span></div>
                     </div>
-                    <div id="last-update" style="font-size: 10px; color: var(--text-muted); text-align: right; margin-top: 5px;">最后同步: 未连接</div>
-                    <div class="chart-wrap"><canvas id="sensorChart"></canvas></div>
+                    <div class="sensor-item">
+                        <div class="sensor-label">pH值</div>
+                        <div class="sensor-value"><span id="sensor-ph">--</span></div>
+                    </div>
+                    <div class="sensor-item">
+                        <div class="sensor-label">溶解氧</div>
+                        <div class="sensor-value"><span id="sensor-oxygen">--</span><span class="sensor-unit">mg/L</span></div>
+                    </div>
                 </div>
+                <div id="last-update" style="font-size: 10px; color: var(--text-muted); text-align: right; margin-top: 5px;">最后同步: 未连接</div>
+                <div class="chart-wrap"><canvas id="sensorChart"></canvas></div>
             </div>
 
             <!-- 事件日志卡片 -->
-            <div class="card" data-collapsible>
-                <div class="card-head" data-toggle>
-                    <h3>异常事件日志</h3>
-                    <button class="card-toggle" title="折叠/展开">−</button>
-                </div>
-                <div class="card-body">
-                    <div class="event-list" id="eventList">
-                        <div style="color:var(--text-muted); text-align:center; padding:10px;">暂无异常事件</div>
-                    </div>
+            <div class="card">
+                <h3>异常事件日志</h3>
+                <div class="event-list" id="eventList">
+                    <div style="color:var(--text-muted); text-align:center; padding:10px;">暂无异常事件</div>
                 </div>
             </div>
 
             <!-- AI 视觉控制卡片 -->
-            <div class="card" data-collapsible>
-                <div class="card-head" data-toggle>
-                    <h3>AI 视觉中枢</h3>
-                    <button class="card-toggle" title="折叠/展开">−</button>
-                </div>
-                <div class="card-body">
+            <div class="card">
+                <h3>AI 视觉中枢</h3>
                 <div class="control-group">
                     <button id="aiBtn" class="btn-on" onclick="toggleAI()">目标检测中</button>
                     <div style="display: flex; gap: 8px;">
@@ -333,30 +294,24 @@
                         <option value="fish_bifpn">模型：鱼群分析 (ECA+EMA+BiFPN)</option>
                     </select>
                 </div>
-                </div>
             </div>
 
             <!-- AI 智慧对话卡片 (占据剩余空间) -->
-            <div class="card chat-card" style="border-top: 3px solid #f59e0b; flex: 1; display: flex; flex-direction: column; min-height: 0;">
-                <div class="card-head" style="cursor: default; margin-bottom: 6px;">
-                    <h3>AI 智慧养殖对话</h3>
-                    <button id="chatFocusBtn" class="card-toggle" onclick="toggleChatFocus()" title="专注模式：隐藏其他区域，对话区占满全屏">专注</button>
+            <div class="card" style="border-top: 3px solid #f59e0b; flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <h3>AI 智慧养殖对话</h3>
+                <div id="chat-messages" class="chat-messages">
+                    <div class="msg msg-ai">你好！我是你的养殖顾问。有什么我可以帮你的吗？你可以直接问我，或者点下面的按钮生成环境报告。</div>
                 </div>
-                <div class="card-body" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
-                    <div id="chat-messages" class="chat-messages">
-                        <div class="msg msg-ai">你好！我是你的养殖顾问。有什么我可以帮你的吗？你可以直接问我，或者点下面的按钮生成环境报告。</div>
-                    </div>
-                    
-                    <div style="padding: 5px 8px;">
-                        <button id="aiAdviceBtn" onclick="getAIAdvice()" style="background: #fffbeb; border-color: #f59e0b; color: #b45309; height: 30px;">
-                             生成当前环境实时诊断报告
-                        </button>
-                    </div>
+                
+                <div style="padding: 5px 8px;">
+                    <button id="aiAdviceBtn" onclick="getAIAdvice()" style="background: #fffbeb; border-color: #f59e0b; color: #b45309; height: 30px;">
+                         生成当前环境实时诊断报告
+                    </button>
+                </div>
 
-                    <div class="chat-input-area">
-                        <input type="text" id="chatInput" placeholder="输入问题..." onkeydown="if(event.keyCode==13) sendChatMessage()">
-                        <button class="send-btn" onclick="sendChatMessage()">发送</button>
-                    </div>
+                <div class="chat-input-area">
+                    <input type="text" id="chatInput" placeholder="输入问题..." onkeydown="if(event.keyCode==13) sendChatMessage()">
+                    <button class="send-btn" onclick="sendChatMessage()">发送</button>
                 </div>
             </div>
         </div>
@@ -727,22 +682,11 @@
                       .replace(/javascript\s*:/gi, 'blocked:');
         }
 
-        function simpleMd(text) {
-            // 极简 Markdown 兜底：marked 不可用时也能正常阅读
-            return String(text)
-                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                .replace(/^### (.*)$/gm, '<h3>$1</h3>')
-                .replace(/^## (.*)$/gm, '<h2>$1</h2>')
-                .replace(/^# (.*)$/gm, '<h1>$1</h1>')
-                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\n/g, '<br>');
-        }
-
         function addMessage(text, role) {
             const div = document.createElement('div');
             div.className = `msg msg-${role}`;
             if (role === 'ai') {
-                div.innerHTML = sanitizeHTML(window.marked ? marked.parse(text) : simpleMd(text));
+                div.innerHTML = sanitizeHTML(marked.parse(text));
             } else {
                 div.innerText = text;
             }
@@ -800,32 +744,6 @@
                 messagesContainer.removeChild(loadingDiv);
                 addMessage('⚠️ 诊断请求失败。', 'ai');
             });
-        }
-
-        // --- 卡片折叠 & 专注模式 ---
-        function toggleCard(head) {
-            const card = head.closest('.card');
-            if (!card || card.classList.contains('chat-card')) return;
-            card.classList.toggle('collapsed');
-            const btn = head.querySelector('.card-toggle');
-            if (btn) btn.textContent = card.classList.contains('collapsed') ? '+' : '−';
-        }
-
-        // 点击卡片标题栏折叠/展开
-        document.querySelectorAll('.card-head[data-toggle]').forEach(function(head) {
-            head.addEventListener('click', function() { toggleCard(head); });
-        });
-
-        // 专注模式：隐藏视频区与其他卡片，对话区占满全屏
-        function toggleChatFocus() {
-            document.body.classList.toggle('chat-focus');
-            const btn = document.getElementById('chatFocusBtn');
-            const focus = document.body.classList.contains('chat-focus');
-            if (btn) {
-                btn.textContent = focus ? '退出' : '专注';
-                btn.title = focus ? '退出专注模式，恢复完整布局' : '专注模式：隐藏其他区域，对话区占满全屏';
-            }
-            if (focus) messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
     (function() {

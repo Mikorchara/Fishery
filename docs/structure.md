@@ -29,6 +29,10 @@ Fishery_Project/
 ├── templates/
 │   └── index.html          # Web 控制台 SPA（MJPEG/H.264、传感器、AI 对话）
 │
+├── static/                 # 前端静态资源（Flask 默认静态目录）
+│   └── js/
+│       └── marked.min.js   # Markdown 渲染库（本地化，避免依赖 CDN 被墙导致不渲染）
+│
 ├── mediamtx/
 │   ├── mediamtx.exe        # 本地 RTSP 服务器（gitignore，不提交）
 │   └── mediamtx.yml        # RTSP 服务器配置

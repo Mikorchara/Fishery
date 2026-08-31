@@ -20,7 +20,7 @@
 | AI | PyTorch 2.5.1+cu121 + Ultralytics YOLO + SAM2 |
 | 视频 | OpenCV + FFmpeg（H.264 编码） |
 | 存储 | SQLite（传感器 / 事件） |
-| 前端 | 纯 HTML/CSS/JS（`templates/index.html`） |
+| 前端 | 纯 HTML/CSS/JS（`templates/index.html` + `static/`） |
 | LLM | DeepSeek API + 自建 RAG（TF-IDF） |
 
 ### 核心模块
@@ -39,6 +39,7 @@
 | `core/storage.py` | SQLite 持久化 |
 | `knowledge/` | 鳗鲡知识图谱 + RAG 引擎 |
 | `templates/index.html` | Web 控制台 SPA |
+| `static/` | 前端静态资源（`static/js/marked.min.js` 本地化，避免依赖 CDN 不稳定） |
 
 ---
 
