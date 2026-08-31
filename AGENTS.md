@@ -42,6 +42,22 @@
 
 ---
 
+### 文档（docs/）
+
+| 路径 | 说明 |
+|------|------|
+| `docs/ROADMAP.md` | 开发路线图 / 接下来的计划 |
+| `docs/troubleshooting.md` | 已知问题与踩坑记录（改前必读） |
+| `docs/code_review.md` | 代码审查报告（初始空白） |
+| `docs/BUILD_RUN.md` | 环境配置与运行指南 |
+| `docs/structure.md` | 项目详细结构 |
+| `docs/patches/` | 修改补丁记录（before/after 对比） |
+| `docs/deep-dive/` | 分模块深入讲解 |
+
+---
+
+
+
 ## 修改规范
 
 ### 原则
@@ -55,7 +71,7 @@
 每次修改已有文件时，按以下步骤操作：
 
 ```
-patches/
+docs/patches/
 └── YYYY-MM-DD_简要描述/
     ├── CHANGES.md          # 修改说明：改了什么、为什么改
     ├── before/             # 修改前的原始文件副本
@@ -83,6 +99,8 @@ patches/
 ## 影响范围
 [哪些功能会受影响]
 ```
+
+
 
 ### 环境信息
 
