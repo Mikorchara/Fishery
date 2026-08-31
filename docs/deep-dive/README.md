@@ -6,6 +6,9 @@
 
 <!-- 在此登记已创建的深入讲解 -->
 
+- `developer_guide.md` — 开发者指南（原 README 详细版迁移至此，环境部分已过时，以 BUILD_RUN.md 为准）
+- `outputs.md` — 项目输出内容（产物）全览：每个输出的产生来源 / 用途 / 清理方式
+
 ## 建议主题
 
 - `video-pipeline.md` — 视频双通道（MJPEG / H.264）完整链路

@@ -90,8 +90,6 @@ class FisheryAI:
                 max_det=self._cfg["max_det"],
                 quantize=16 if self._fp16 else None,
                 verbose=False,
-                # ONNX 当前环境无可用 onnxruntime-gpu（AutoUpdate 装的 1.29 需 CUDA 13），强制 CPU 跑通
-                **({"device": "cpu"} if self._model_format == "onnx" else {}),
             )
 
         boxes = yolo_results[0].boxes
