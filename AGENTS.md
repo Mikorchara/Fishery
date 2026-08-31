@@ -1,0 +1,154 @@
+# AGENTS.md — 项目指南与修改规范
+
+## 项目简介
+
+**智慧渔业水下协同控制系统** — 实时水下视频监测与分析平台。
+
+- **入口**：`python app.py`（或一键启动 `start_all.ps1`）
+- **Web**：`http://127.0.0.1:5000`
+- **Git 仓库**：`https://github.com/Mikorchara/Fishery.git`
+- **视频源**：RTSP 流（真实摄像头 / ffmpeg 推本地文件模拟）
+- **AI 能力**：YOLO 鱼群检测 + SAM2 实例分割 + WWE-UIE 水下增强
+- **LLM**：DeepSeek API（诊断 + 对话）
+- **传感器**：水温 / pH / 溶氧（通过 API 上报）
+
+### 技术栈
+
+| 层 | 技术 |
+|----|------|
+| 后端 | Python 3.11 + Flask + Flask-Sock |
+| AI | PyTorch 2.5.1+cu121 + Ultralytics YOLO + SAM2 |
+| 视频 | OpenCV + FFmpeg（H.264 编码） |
+| 存储 | SQLite（传感器 / 事件） |
+| 前端 | 纯 HTML/CSS/JS（`templates/index.html`） |
+| LLM | DeepSeek API + 自建 RAG（TF-IDF） |
+
+### 核心模块
+
+| 文件 | 职责 |
+|------|------|
+| `app.py` | Flask 主入口、路由 |
+| `config.py` | 全局配置（模型路径、阈值、API Key） |
+| `core/video_stream.py` | RTSP 双线程异步采集 |
+| `core/ai_detector.py` | YOLO 检测/分割 + SAM2 |
+| `core/enhancer.py` | WWE-UIE 水下图像增强 |
+| `core/llm_advisor.py` | LLM 诊断 + RAG 对话 |
+| `core/frame_processor.py` | 帧处理流水线 |
+| `core/h264_streamer.py` | FFmpeg H.264 编码 |
+| `core/ws_handler.py` | WebSocket 视频推流 |
+| `core/storage.py` | SQLite 持久化 |
+| `knowledge/` | 鳗鲡知识图谱 + RAG 引擎 |
+| `templates/index.html` | Web 控制台 SPA |
+
+---
+
+## 修改规范
+
+### 原则
+
+1. **任何对已有代码的修改，必须先备份记录。**
+2. **优先新增文件，而非改动已有文件。**
+3. **修改最小化** — 只改必要的，不动无关代码。
+
+### 修改记录流程
+
+每次修改已有文件时，按以下步骤操作：
+
+```
+patches/
+└── YYYY-MM-DD_简要描述/
+    ├── CHANGES.md          # 修改说明：改了什么、为什么改
+    ├── before/             # 修改前的原始文件副本
+    │   └── xxx.py
+    └── after/              # 修改后的文件副本
+        └── xxx.py
+```
+
+#### CHANGES.md 模板
+
+```markdown
+# 修改日期：YYYY-MM-DD
+# 修改人：[姓名]
+
+## 修改文件
+- `path/to/file.py`
+
+## 修改原因
+[简述为什么要改]
+
+## 修改内容
+- 改了 A
+- 加了 B
+
+## 影响范围
+[哪些功能会受影响]
+```
+
+### 环境信息
+
+- **Python 版本**：3.11（`venv`，非 conda）
+- **虚拟环境**：`d:\Fishery_Project\.venv`
+- **PyTorch**：2.5.1+cu121（从 PyTorch 官网安装）
+- **GPU**：NVIDIA RTX 3070 Laptop 8GB
+
+### 运行前检查
+
+- [ ] `.env` 中 `DEEPSEEK_API_KEY` 已配置
+- [ ] 虚拟环境已激活：`.venv\Scripts\Activate.ps1`
+- [ ] `models/fish_detect_m.pt` 存在
+- [ ] RTSP 视频源可访问（或接受启动延迟）
+
+---
+
+## 启动流程
+
+### 方式一：一键启动（推荐）
+
+```powershell
+cd d:\Fishery_Project
+.\start_all.ps1
+```
+
+脚本自动完成：启动 mediamtx → 自动挑选视频推流（`test_video.mp4` / `test_video_2.mp4` / `recordings` 最新）→ 启动 Flask → 8 秒后自动打开浏览器。
+按 `Ctrl+C` 退出时自动关闭 ffmpeg 与 mediamtx。
+
+> **注意**：`start_all.ps1` 必须保持 **UTF-8 with BOM** 编码，否则 Windows PowerShell 5.1 会因中文乱码导致整脚本解析失败。
+
+### 方式二：手动 3 终端（排障/调试用）
+
+> **重要**：如果 ffmpeg 是手动安装的，每个新终端需先刷新 PATH：
+> ```powershell
+> $env:Path = [System.Environment]::GetEnvironmentVariable("Path","User") + ";" + [System.Environment]::GetEnvironmentVariable("Path","Machine")
+> ```
+
+### 终端 1 — mediamtx（RTSP 服务器）
+
+```powershell
+cd d:\Fishery_Project\mediamtx
+.\mediamtx.exe
+```
+
+看到 `[RTSP] started with listeners on :8554` 即成功，保持运行。
+
+### 终端 2 — ffmpeg（推流）
+
+```powershell
+ffmpeg -re -stream_loop -1 -i d:\Fishery_Project\test_video.mp4 -c copy -rtsp_transport tcp -f rtsp rtsp://127.0.0.1:8554/mystream
+```
+
+终端 1 出现 `[RTSP] [conn ...] opened` 表示推流成功，保持运行。
+
+### 终端 3 — Flask（Web 服务）
+
+```powershell
+cd d:\Fishery_Project
+.venv\Scripts\Activate.ps1
+python app.py
+```
+
+看到 `系统启动: http://127.0.0.1:5000` 后，浏览器打开该地址。
+
+### 停止
+
+- **一键启动**：直接 `Ctrl+C`，脚本自动关闭 ffmpeg 与 mediamtx。
+- **手动 3 终端**：按顺序反向关闭：先 `Ctrl+C` 停 Flask → ffmpeg → mediamtx。

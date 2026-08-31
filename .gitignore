@@ -1,0 +1,78 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment / Conda
+env/
+venv/
+.venv/
+conda-env/
+
+# Model weights (large binary files)
+*.pt
+*.pth
+*.onnx
+*.om
+
+# Video files
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.flv
+*.wmv
+
+# Dataset (large, not part of source code)
+WWE-UIE/UnderWaterDataset/
+WWE-UIE/output/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude Code
+.claude/
+
+# Project-specific temp / scratch
+scratch/
+docs/论文相关/
+docs/说明文档/
+test/
+
+# Generated documents
+*.pptx
+
+# Evaluation / benchmark outputs
+eval_result.json
+
+# Editor backup files
+*.drawio.bkp
+
+# Screenshot captures
+captures/
+recordings/
+bench_output/
+
+# Environment
+.env
+data.db
+data.db-shm
+data.db-wal
+*.log
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# mediamtx（本地 RTSP 服务器，第三方工具二进制 + 自动生成的 TLS 证书）
+mediamtx/mediamtx.exe
+mediamtx/auto.crt
+mediamtx/auto.key
