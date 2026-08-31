@@ -27,6 +27,9 @@ conda-env/
 *.flv
 *.wmv
 
+# 测试图片（原始文件不入库，压缩归档 test_video_*.zip 提交）
+test_img.png
+
 # Dataset (large, not part of source code)
 WWE-UIE/UnderWaterDataset/
 WWE-UIE/output/
@@ -74,3 +77,5 @@ Thumbs.db
 mediamtx/mediamtx.exe
 mediamtx/auto.crt
 mediamtx/auto.key
+
+

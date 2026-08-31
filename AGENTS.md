@@ -100,6 +100,12 @@ docs/patches/
 [哪些功能会受影响]
 ```
 
+### 安全规范
+
+- `.env`（含 `DEEPSEEK_API_KEY`）已被 `.gitignore` 排除，**禁止提交**。
+- `docs/patches/` 下补丁备份若含 `.env` 等敏感文件，**必须先脱敏**（真实密钥替换为占位符）再入库，并在 `.gitignore` 显式放行（`!docs/patches/**/after/.env`）。
+- 提交前用 `git status` / `git diff --cached` 检查是否混入密钥、大二进制（如 `mediamtx.exe`）。
+
 
 
 ### 环境信息
