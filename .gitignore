@@ -27,8 +27,10 @@ conda-env/
 *.flv
 *.wmv
 
-# 测试图片（原始文件不入库，压缩归档 test_video_*.zip 提交）
-test_img.png
+# 测试资料：原始视频/图片入库（单文件均 < GitHub 100MB 限制）
+!test_video.mp4
+!test_video_2.mp4
+!test_img.png
 
 # Dataset (large, not part of source code)
 WWE-UIE/UnderWaterDataset/

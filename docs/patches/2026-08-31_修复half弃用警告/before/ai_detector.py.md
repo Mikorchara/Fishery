@@ -69,7 +69,7 @@ class FisheryAI:
                     iou=self._cfg["iou"],
                     imgsz=self._cfg["imgsz"],
                     max_det=self._cfg["max_det"],
-                    quantize=16 if self._fp16 else None,
+                    half=self._fp16,
                     persist=True,
                     verbose=False,
                 )
@@ -79,7 +79,7 @@ class FisheryAI:
                 yolo_results = self.yolo_model.predict(
                     frame, conf=self._cfg["conf"], iou=self._cfg["iou"],
                     imgsz=self._cfg["imgsz"], max_det=self._cfg["max_det"],
-                    quantize=16 if self._fp16 else None, verbose=False,
+                    half=self._fp16, verbose=False,
                 )
         else:
             yolo_results = self.yolo_model.predict(
@@ -88,7 +88,7 @@ class FisheryAI:
                 iou=self._cfg["iou"],
                 imgsz=self._cfg["imgsz"],
                 max_det=self._cfg["max_det"],
-                quantize=16 if self._fp16 else None,
+                half=self._fp16,
                 verbose=False,
             )
 

@@ -43,7 +43,7 @@ class WWEEnhancer:
 
         if weight_path and os.path.exists(weight_path):
             _log.info("加载 WWE-UIE 权重: %s", weight_path)
-            checkpoint = torch.load(weight_path, map_location=self.device, weights_only=True)
+            checkpoint = torch.load(weight_path, map_location=self.device)
             model_state = self.model.state_dict()
             missing = [k for k in model_state if k not in checkpoint]
             unexpected = [k for k in checkpoint if k not in model_state]

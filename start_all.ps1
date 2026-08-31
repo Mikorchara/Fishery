@@ -67,9 +67,10 @@ try {
         throw "找不到虚拟环境 Python：$Root\.venv\Scripts\python.exe"
     }
     $env:PYTHONPATH = $Root
-    # 后台延迟 8 秒后自动打开浏览器（等 Flask 起来）
-    Start-Job -ScriptBlock { Start-Sleep -Seconds 8; Start-Process "http://127.0.0.1:5000" } | Out-Null
-    Write-Host "浏览器打开 http://127.0.0.1:5000 ，按 Ctrl+C 退出。" -ForegroundColor Green
+    # 后台延迟 15 秒后自动打开浏览器（等 Flask 起来）
+    Start-Job -ScriptBlock { Start-Sleep -Seconds 15; Start-Process "http://127.0.0.1:5000" } | Out-Null
+    Write-Host ("[{0}] 15 秒后自动打开浏览器: http://127.0.0.1:5000" -f (Get-Date -Format "HH:mm:ss")) -ForegroundColor Green
+    Write-Host "若届时未自动打开，请手动刷新页面；按 Ctrl+C 退出。" -ForegroundColor Green
     & "$Root\.venv\Scripts\python.exe" "$Root\app.py"
 }
 finally {
