@@ -23,6 +23,7 @@
 cd d:\Fishery_Project
 .\Z_script\start_all.ps1            # 本地视频推流
 .\Z_script\start_usb_camera.ps1     # 外接 USB 摄像头（真实场景）
+.\Z_script\start_all_with_sensor.ps1  # 视频 + 传感器模拟数据（演示最全，AI 报告带真实水质）
 ```
 
 脚本自动启动 mediamtx → 推流 → 启动 Flask，约 15 秒后自动打开浏览器。

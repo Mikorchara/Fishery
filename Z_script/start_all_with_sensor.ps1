@@ -1,0 +1,104 @@
+﻿# start_all_with_sensor.ps1 - 智慧渔业系统一键启动（含传感器模拟数据）
+# 依次启动：mediamtx + ffmpeg(本地视频推流) + 传感器模拟器(datatran_test.py) + Flask(Web)，
+# 无需参数、无需第二个终端；Ctrl+C 退出时自动清理本次启动的所有子进程。
+#
+# 用法（在项目根 D:\Fishery_Project 下执行）：
+#   powershell -ExecutionPolicy Bypass -File d:\Fishery_Project\Z_script\start_all_with_sensor.ps1
+#   （或 cd d:\Fishery_Project 后执行 .\Z_script\start_all_with_sensor.ps1）
+#
+# 作用：浏览器打开 http://127.0.0.1:5000 后即可看到「视频画面 + AI 检测 + 实时波动的水质数据」，
+#       点「生成当前环境实时诊断报告」即为带真实数据的完整报告。
+# 传感器模拟器输出见 scratch\sensor_sim.log（退出时自动删除）。
+#
+# 注意：本文件必须以 UTF-8 with BOM 保存，否则 Windows PowerShell 5.1 会乱码报错。
+
+$ErrorActionPreference = "Stop"
+$Root = Split-Path $PSScriptRoot -Parent   # Z_script 的上一级 = 项目根
+Set-Location $Root
+
+# 刷新 PATH（ffmpeg 手动安装时，新终端可能拿不到）
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path", "User") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+
+$mtx = $null
+$startedMtx = $false
+$ffmpeg = $null
+$sim = $null
+
+try {
+    # ---------- 1. mediamtx（本地 RTSP 服务器） ----------
+    if (Get-NetTCPConnection -LocalPort 8554 -State Listen -ErrorAction SilentlyContinue) {
+        Write-Host "[1/4] mediamtx 已在运行 (:8554)，跳过启动" -ForegroundColor Yellow
+    } elseif (Test-Path "$Root\mediamtx\mediamtx.exe") {
+        Write-Host "[1/4] 启动 mediamtx (RTSP 服务器)..." -ForegroundColor Cyan
+        $mtx = Start-Process -FilePath "$Root\mediamtx\mediamtx.exe" `
+            -WorkingDirectory "$Root\mediamtx" -PassThru -WindowStyle Hidden
+        $startedMtx = $true
+        Start-Sleep -Seconds 2
+    } else {
+        Write-Host "  [警告] 找不到 mediamtx.exe，跳过" -ForegroundColor Yellow
+    }
+
+    # ---------- 2. ffmpeg 推流（本地视频 → RTSP） ----------
+    $video = $null
+    foreach ($cand in @("$Root\test_video.mp4", "$Root\test_video_2.mp4")) {
+        if (Test-Path $cand) { $video = $cand; break }
+    }
+    if (-not $video) {
+        $latest = Get-ChildItem "$Root\recordings" -Include *.mp4 -File -ErrorAction SilentlyContinue |
+                  Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        if ($latest) { $video = $latest.FullName }
+    }
+    if ($video) {
+        Write-Host "[2/4] ffmpeg 推流: $video" -ForegroundColor Cyan
+        $ffmpeg = Start-Process -FilePath "ffmpeg" -ArgumentList @(
+            "-re", "-stream_loop", "-1", "-i", $video,
+            "-c", "copy", "-rtsp_transport", "tcp",
+            "-f", "rtsp", "rtsp://127.0.0.1:8554/mystream"
+        ) -PassThru -WindowStyle Hidden
+        Start-Sleep -Seconds 1
+    } else {
+        Write-Host "[2/4] 未找到视频文件，跳过推流（可另用 start_pc/usb_camera.ps1）" -ForegroundColor Yellow
+    }
+
+    # ---------- 3. 传感器模拟器（后台循环上报，输出写 scratch\sensor_sim.log） ----------
+    Write-Host "[3/4] 启动传感器模拟器 (datatran_test.py)..." -ForegroundColor Cyan
+    if (-not (Test-Path "$Root\scratch")) { New-Item -ItemType Directory -Force "$Root\scratch" | Out-Null }
+    $simOut = "$Root\scratch\sensor_sim.log"
+    $simErr = "$Root\scratch\sensor_sim.err.log"
+    $sim = Start-Process -FilePath "$Root\.venv\Scripts\python.exe" `
+        -ArgumentList "$Root\tests\datatran_test.py" `
+        -WorkingDirectory $Root -PassThru -WindowStyle Hidden `
+        -RedirectStandardOutput $simOut -RedirectStandardError $simErr
+    Start-Sleep -Seconds 1
+
+    # ---------- 4. Flask（前台运行，Ctrl+C 退出） ----------
+    Write-Host "[4/4] 启动 Flask..." -ForegroundColor Cyan
+    if (-not (Test-Path "$Root\.venv\Scripts\python.exe")) {
+        throw "找不到虚拟环境 Python：$Root\.venv\Scripts\python.exe"
+    }
+    $env:PYTHONPATH = $Root
+    # 后台延迟 15 秒后自动打开浏览器（等 Flask 起来）
+    Start-Job -ScriptBlock { Start-Sleep -Seconds 15; Start-Process "http://127.0.0.1:5000" } | Out-Null
+    Write-Host ("[{0}] 15 秒后自动打开浏览器: http://127.0.0.1:5000" -f (Get-Date -Format "HH:mm:ss")) -ForegroundColor Green
+    Write-Host "视频 + 传感器数据就绪后，点「生成当前环境实时诊断报告」即含真实水质数据；按 Ctrl+C 退出。" -ForegroundColor Green
+    & "$Root\.venv\Scripts\python.exe" "$Root\app.py"
+}
+catch {
+    Write-Host ("错误: " + $_.Exception.Message) -ForegroundColor Red
+    exit 1
+}
+finally {
+    # ---------- 清理：关闭本次启动的 模拟器 / ffmpeg / mediamtx ----------
+    Write-Host "正在关闭 传感器模拟器 / ffmpeg / mediamtx ..." -ForegroundColor Yellow
+    if ($sim -and -not $sim.HasExited) {
+        Stop-Process -Id $sim.Id -Force -ErrorAction SilentlyContinue
+    }
+    if ($ffmpeg -and -not $ffmpeg.HasExited) {
+        Stop-Process -Id $ffmpeg.Id -Force -ErrorAction SilentlyContinue
+    }
+    if ($startedMtx -and $mtx -and -not $mtx.HasExited) {
+        Stop-Process -Id $mtx.Id -Force -ErrorAction SilentlyContinue
+    }
+    Remove-Item "$Root\scratch\sensor_sim.log", "$Root\scratch\sensor_sim.err.log" -ErrorAction SilentlyContinue
+    Write-Host "已退出。" -ForegroundColor Green
+}

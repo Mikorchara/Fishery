@@ -76,10 +76,12 @@ cd d:\Fishery_Project
 .\Z_script\start_all.ps1            # ① 本地视频推流（演示）
 .\Z_script\start_pc_camera.ps1      # ② 电脑内置摄像头
 .\Z_script\start_usb_camera.ps1     # ③ 外接 USB 摄像头（真实场景）
+.\Z_script\start_all_with_sensor.ps1  # ④ 视频 + 传感器模拟数据（演示最全）
 ```
 
 自动完成：mediamtx → 推流 → Flask → 约 15 秒后自动打开浏览器。
 摄像头脚本启动前会自动检测设备名（不存在则报错退出）；设备名不同时用 `-DeviceName` 指定。
+`start_all_with_sensor.ps1` 会额外自动启动传感器模拟器（`tests/datatran_test.py`），无需第二个终端即有波动的实时水质数据，可直接生成完整 AI 诊断报告。
 
 ### 方式二：手动 3 终端
 

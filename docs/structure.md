@@ -6,6 +6,7 @@ Fishery_Project/
 ├── config.py               # 全局配置：模型路径、阈值、LLM、编码器、认证
 ├── Z_script/                 # PowerShell 启动/工具脚本（须 UTF-8 with BOM）
 │   ├── start_all.ps1         # 一键启动：本地视频推流 + Flask
+│   ├── start_all_with_sensor.ps1  # 视频 + 传感器模拟数据一键启动（演示最全）
 │   ├── start_pc_camera.ps1   # 电脑内置摄像头启动
 │   ├── start_usb_camera.ps1  # 外接 USB 摄像头启动
 │   ├── check_env.ps1         # 环境就绪自检（只读）

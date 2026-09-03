@@ -142,11 +142,15 @@ cd d:\Fishery_Project
 
 # ③ 外接 USB 摄像头（USB Video Device，720p@10）
 .\Z_script\start_usb_camera.ps1
+
+# ④ 视频 + 传感器模拟数据一起启动（演示最全）
+.\Z_script\start_all_with_sensor.ps1
 ```
 
 - `start_all.ps1`：启动 mediamtx → 自动挑选视频推流（`test_video.mp4` / `test_video_2.mp4` / `recordings` 最新）→ Flask → 自动打开浏览器。
 - `start_pc_camera.ps1` / `start_usb_camera.ps1`：启动 mediamtx → ffmpeg 把对应摄像头推成 RTSP → Flask。设备名可用 `-DeviceName` 覆盖，分辨率用 `-VideoSize` / `-Fps`。
-- 按 `Ctrl+C` 退出时自动关闭本次启动的 ffmpeg 与 mediamtx（已在运行的 mediamtx 不会误关）。
+- `start_all_with_sensor.ps1`：在 `start_all.ps1` 基础上**自动附带传感器模拟器**（`tests/datatran_test.py` 后台循环上报），开箱即有波动的实时水质数据，可直接生成完整 AI 报告。
+- 按 `Ctrl+C` 退出时自动关闭本次启动的 传感器模拟器/ffmpeg/mediamtx（已在运行的 mediamtx 不会误关）。
 
 > **注意**：以上脚本均须保持 **UTF-8 with BOM** 编码，否则 Windows PowerShell 5.1 会因中文乱码导致整脚本解析失败。
 
