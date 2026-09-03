@@ -131,6 +131,7 @@ def validate():
         errors.append(f"IOU_THRESHOLD 需在 [0,1] 范围，当前值: {IOU_THRESHOLD}")
 
     if errors:
+        
         import logging
         clog = logging.getLogger("config")
         clog.error("配置错误:")

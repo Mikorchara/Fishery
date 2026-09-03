@@ -8,6 +8,7 @@
 
 - `developer_guide.md` — 开发者指南（原 README 详细版迁移至此，环境部分已过时，以 BUILD_RUN.md 为准）
 - `outputs.md` — 项目输出内容（产物）全览：每个输出的产生来源 / 用途 / 清理方式
+- `models-guide.md` — models/ 模型文件分类速查（.pt/.onnx/.om/.yaml 格式与用途），含 ONNX GPU 运行须知
 
 ## 建议主题
 

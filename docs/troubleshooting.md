@@ -45,3 +45,17 @@
 - **现象**：`<script src="/static/js/xxx.js">` 返回 404。
 - **原因**：Flask 默认 static 路由指向**项目根** `static/` 目录，不是 `templates/static/`。
 - **解决**：静态文件放项目根 `static/` 下（2026-08-31 已将 marked.min.js 放在 `static/js/marked.min.js`）。
+
+## 8. onnxruntime / ONNX 模型 GPU 运行（已解决 2026-09-03）
+
+- **现象**：网页/脚本加载 `.onnx` 模型崩溃，或报 `onnxruntime ... require CUDA 13 ...` / `There's no data transfer registered`；或被迫走 CPU 极慢。
+- **根因**：
+  - **onnxruntime-gpu 不捆绑 CUDA 库**——它运行时要找 cublas / cuDNN；PyTorch 是自带 CUDA 运行时的，所以"PyTorch 能 GPU ≠ onnxruntime 能 GPU"。
+  - ultralytics 的 **AutoUpdate** 会自动联网补依赖：曾误装**最新 onnxruntime-gpu 1.29（要求 CUDA 13 + cuDNN 9）**，与 CUDA 12 环境不匹配 → CUDA EP 初始化失败 → 崩溃；且污染 `.venv`。
+- **✅ 解决（2026-09-03，.venv 内可移植方案）**：
+  1. 卸载 AutoUpdate 误装的 `onnxruntime-gpu 1.29` / `onnxruntime` / `onnx`；
+  2. 系统装 **CUDA Toolkit 12.6**（`CUDA_PATH`），并在 `.venv` 内 `pip install nvidia-cudnn-cu12 nvidia-cublas-cu12`（cuDNN 9.25 随 .venv 可移植）；
+  3. `.venv` 内 `pip install onnxruntime-gpu==1.21.1 onnx`（**1.21.x = CUDA 12 + cuDNN 9**；勿装 ≥1.29 需 CUDA 13）；
+  4. 实测：`onnxruntime 1.21.1 with CUDAExecutionProvider`，`fish_detect.onnx` GPU 推理成功。
+- **教训**：环境问题不要靠硬编码改业务代码解决（曾尝试在 `ai_detector.py` 强制 ONNX 走 CPU，已回退——那会让有 CUDA 13 的环境也退化成 CPU）。
+- 模型与格式分类见 `docs/deep-dive/models-guide.md`。

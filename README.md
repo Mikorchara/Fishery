@@ -16,6 +16,9 @@
 
 前置要求：Python 3.11（venv）、NVIDIA GPU（CUDA）、FFmpeg、mediamtx、模型权重、`.env` 中的 DeepSeek Key（详见 `docs/BUILD_RUN.md`）。
 
+> 不确定环境是否就绪？先一键自检（只读，不联网）：
+> `powershell -ExecutionPolicy Bypass -File check_env.ps1`，退出码 0 后再启动。
+
 ```powershell
 cd d:\Fishery_Project
 .\start_all.ps1

@@ -66,6 +66,8 @@ pip install -r WWE-UIE/requirements.txt
 | `sam2.1_t.pt` | SAM2 分割基础模型 | 否 |
 | `sam2_hiera_t.yaml` | SAM2 配置文件 | 否 |
 
+> **ONNX 模型运行须知**：`.onnx` 需要 onnxruntime 库；onnxruntime-gpu **不捆绑 CUDA 库**，需自行安装**匹配的独立 CUDA Toolkit + cuDNN**（本项目 PyTorch 为 cu121 / CUDA 12，应装 onnxruntime-gpu **1.21.x**，配 `.venv` 内 cuDNN）。若缺失，ultralytics 会**自动联网装最新版**（1.29 需 CUDA 13）导致不匹配。详细经验见 `docs/troubleshooting.md` 第 8 条，模型分类见 `docs/deep-dive/models-guide.md`。
+
 水下图像增强的模型在这里：
 WWE-UIE 增强权重会自动从 `WWE-UIE/output/Fishery_WWE_UIEB/UIEB/` 目录中按日期选取最新的 `best_model.pth`。
 

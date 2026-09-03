@@ -50,6 +50,21 @@ DEEPSEEK_API_KEY=你的API密钥
 
 不配也能运行，仅 LLM 诊断/对话不可用。
 
+### 6. 环境自检（可选，推荐）
+
+装好依赖后可一键自检环境是否就绪（**只读**：不联网、不改环境、不触发 AutoUpdate）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File check_env.ps1
+# 可选参数：
+#   -SkipGpu    跳过 GPU 探测（无显卡机）
+#   -Deep       额外真实加载模型推理一次（较慢）
+#   -CheckOnnx  只读探测 onnxruntime-gpu 版本并提示 CUDA 匹配（pip show，不触发 AutoUpdate）
+#   -NoColor    纯文本输出（便于重定向到文件）
+```
+
+退出码：**0 = 可启动；1 = 存在必查失败**（按上方 `[FAIL]` 项逐一修复）。脚本设计说明见 `docs/env_check_plan.md`。
+
 ## 二、运行
 
 ### 方式一：一键启动（推荐）
