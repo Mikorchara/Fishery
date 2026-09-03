@@ -1,11 +1,11 @@
 # check_env.ps1 — 环境就绪检查：使用与设计说明
 
-> **状态**：✅ 已实现（2026-09-03，脚本位于项目根 `check_env.ps1`）
+> **状态**：✅ 已实现（2026-09-03，脚本位于 `Z_script\check_env.ps1`）
 > **一句话**：把“这台电脑能不能跑起本项目”变成一条命令；分发/接手时先自检，缺什么一目了然。
 > **性质**：只读预检 —— **只检测、不修改、不装包、不联网、不触发 ultralytics AutoUpdate**。
 
 ### 本机实测验证记录
-- 正常环境 → **就绪 22 / 警告 0 / 失败 0**，退出码 0
+- 正常环境 → **就绪 22 / 警告 0 / 失败 0**，退出码 0（A6 摄像头为 INFO，不改变就绪计数；本机探测到内置 + 外接共 2 路）
 - `-CheckOnnx`（已装 1.21.1 + `.venv` cuDNN）→ 追加 ONNX 1 项 → **就绪 23 / 警告 0 / 失败 0**
 - `-SkipGpu` → D 组正确跳过（机器无可用 GPU 时，模型只能 CPU 跑）
 - 人为移除 `models/sam2.1_t.pt` → `[FAIL]` 且退出码 1；恢复后正常
@@ -18,10 +18,10 @@
 
 ```powershell
 # 基本检查（推荐先跑这条）
-powershell -ExecutionPolicy Bypass -File check_env.ps1
+powershell -ExecutionPolicy Bypass -File Z_script\check_env.ps1
 
 # 组合：追加 ONNX GPU 检查 + 真实推理一次
-powershell -ExecutionPolicy Bypass -File check_env.ps1 -CheckOnnx -Deep
+powershell -ExecutionPolicy Bypass -File Z_script\check_env.ps1 -CheckOnnx -Deep
 ```
 
 | 可选参数 | 作用 |
@@ -34,13 +34,13 @@ powershell -ExecutionPolicy Bypass -File check_env.ps1 -CheckOnnx -Deep
 
 **退出码**：`0` = 无必查失败，可启动；`1` = 存在 `[FAIL]`，按提示修复后重跑。
 
-**检查分组**：A 系统与外部程序 · B venv · C Python 包 · D GPU(PyTorch) · E 模型 · F 密钥/数据 · G 端口 · H CUDA Toolkit / `.venv` cuDNN、cuBLAS（ONNX GPU 前置）＋（可选，`-CheckOnnx`）ONNX。
+**检查分组**：A 系统与外部程序（含可选摄像头探测）· B venv · C Python 包 · D GPU(PyTorch) · E 模型 · F 密钥/数据 · G 端口 · H CUDA Toolkit / `.venv` cuDNN、cuBLAS（ONNX GPU 前置）＋（可选，`-CheckOnnx`）ONNX。
 
 ---
 
 ## 2. 背景与定位
 
-- 启动链路：`start_all.ps1` → mediamtx + ffmpeg + Flask(`app.py`)；`app.py` 启动会加载 YOLO/SAM2/WWE-UIE/RAG。
+- 启动链路：`Z_script\start_all.ps1` → mediamtx + ffmpeg + Flask(`app.py`)；`app.py` 启动会加载 YOLO/SAM2/WWE-UIE/RAG。
 - 依赖横跨：venv、GPU 驱动、第三方包、外部程序（ffmpeg/mediamtx）、模型、密钥、端口——任一缺失，新人只能靠“试运行看报错”排查，沟通成本高。
 - 本脚本定位 = **只读环境预检（preflight）**，尽量不打扰系统。
 
@@ -70,6 +70,7 @@ powershell -ExecutionPolicy Bypass -File check_env.ps1 -CheckOnnx -Deep
 | A3 | `ffmpeg` 支持 `h264_nvenc` | `ffmpeg -encoders` | INFO / WARN（无则回退 CPU 软编 libx264） |
 | A4 | `mediamtx\mediamtx.exe` | Test-Path | **FAIL**（本地 RTSP 必需） |
 | A5 | NVIDIA 驱动版本 | `nvidia-smi` | INFO / WARN |
+| A6 | 可用摄像头（可选） | `ffmpeg -f dshow -list_devices` 读设备名 | INFO（有）/ WARN（无：真实摄像头不可用，可继续用本地视频/RTSP） |
 
 ### B. Python 虚拟环境
 | # | 检查项 | 判定方法 | 级别 |
@@ -161,7 +162,7 @@ check_env.ps1
 
 ## 9. 存放与命名
 
-- 脚本在项目根 `check_env.ps1`（与 `start_all.ps1` 平级），UTF-8 with BOM。
+- 脚本位于 `Z_script\check_env.ps1`（与 `start_all.ps1` 等启动脚本同目录），UTF-8 with BOM。
 - 使用说明已同步进根 `README.md`、`docs/BUILD_RUN.md`，并在 `docs/deep-dive/README.md` 登记。
 
 ## 10. 验收方式（实测结果见文首）

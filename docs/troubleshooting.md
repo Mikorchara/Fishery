@@ -2,12 +2,12 @@
 
 > 修改代码前必读。遇到问题先来这里查。
 
-## 1. start_all.ps1 必须为 UTF-8 with BOM 编码
+## 1. Z_script 下 PowerShell 脚本必须为 UTF-8 with BOM 编码
 
 - **现象**：脚本一运行就报"字符串缺少终止符"，所有进程都没启动，浏览器打不开。
 - **原因**：Windows PowerShell 5.1（`powershell`）会把无 BOM 的 .ps1 按 ANSI(GBK) 读取，中文注释乱码破坏引号，导致整脚本解析失败。
 - **解决**：文件保存为 UTF-8 with BOM（或用 pwsh 7 运行）。
-- **验证**：用 `powershell -NoProfile -ExecutionPolicy Bypass -File start_all.ps1` 实测（勿只用 pwsh 解析，测不出 5.1 的问题）。
+- **验证**：用 `powershell -NoProfile -ExecutionPolicy Bypass -File Z_script\start_all.ps1` 实测（勿只用 pwsh 解析，测不出 5.1 的问题；`Z_script/` 下所有 .ps1 同理）。
 
 ## 2. AI 报告在网页上无法正常显示（部分修复）
 
@@ -59,3 +59,18 @@
   4. 实测：`onnxruntime 1.21.1 with CUDAExecutionProvider`，`fish_detect.onnx` GPU 推理成功。
 - **教训**：环境问题不要靠硬编码改业务代码解决（曾尝试在 `ai_detector.py` 强制 ONNX 走 CPU，已回退——那会让有 CUDA 13 的环境也退化成 CPU）。
 - 模型与格式分类见 `docs/deep-dive/models-guide.md`。
+
+## 9. PowerShell `$ErrorActionPreference=Stop` 下 ffmpeg stderr 抛 NativeCommandError（2026-09-03）
+
+- **现象**：`Z_script/start_pc_camera.ps1` / `start_usb_camera.ps1` 一运行就报错退出，错误消息是 ffmpeg 的**设备清单第一行**（如 `错误: [in#0 @ ...] "HP Wide Vision HD Camera" (video)`），随后直接进 finally 清理退出，摄像头根本没被用。
+- **根因**：脚本顶部 `$ErrorActionPreference="Stop"`；而 `ffmpeg -f dshow -list_devices true -i dummy` 把设备清单写到 **stderr**。Windows PowerShell 5.1 会把原生程序的 stderr 包装成 ErrorRecord，在 `Stop` 模式下**第一条 stderr 即触发 NativeCommandError 终止**（即使 `2> 文件` 重定向也一样会抛）。
+- **✅ 解决**：调用 ffmpeg 前临时把 `$ErrorActionPreference` 降为 `Continue`（用完在 `finally` 恢复），再用 `2>&1 | Out-String` 捕获整段文本做设备名匹配：
+  ```powershell
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try { $out = & ffmpeg -hide_banner -f dshow -list_devices true -i dummy 2>&1 | Out-String }
+  finally { $ErrorActionPreference = $prev }
+  return $out -match [regex]::Escape($Name)
+  ```
+  （注意：降为 `SilentlyContinue` 会把 stderr 一并吞掉导致匹配不到，必须用 `Continue`；或用 `cmd /c '... 2>&1'` 让 cmd 合并 stderr 也能绕开。）
+- **验证**：`$ErrorActionPreference='Stop'` 下实测——内置 `HP Wide Vision HD Camera` / 外接 `USB Video Device` 均匹配成功，不存在的设备返回 False，全程不抛错。

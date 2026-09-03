@@ -4,7 +4,7 @@
 
 **智慧渔业水下协同控制系统** — 实时水下视频监测与分析平台。
 
-- **入口**：`python app.py`（或一键启动 `start_all.ps1`）
+- **入口**：`python app.py`（或一键启动 `Z_script\start_all.ps1`）
 - **Web**：`http://127.0.0.1:5000`
 - **Git 仓库**：`https://github.com/Mikorchara/Fishery.git`
 - **视频源**：RTSP 流（真实摄像头 / ffmpeg 推本地文件模拟）
@@ -129,15 +129,26 @@ docs/patches/
 
 ### 方式一：一键启动（推荐）
 
+所有 PowerShell 启动脚本统一放在 `Z_script/`，在项目根按需选用：
+
 ```powershell
 cd d:\Fishery_Project
-.\start_all.ps1
+
+# ① 本地视频文件推流（演示/测试）
+.\Z_script\start_all.ps1
+
+# ② 电脑内置摄像头（HP Wide Vision HD Camera，720p@30）
+.\Z_script\start_pc_camera.ps1
+
+# ③ 外接 USB 摄像头（USB Video Device，720p@10）
+.\Z_script\start_usb_camera.ps1
 ```
 
-脚本自动完成：启动 mediamtx → 自动挑选视频推流（`test_video.mp4` / `test_video_2.mp4` / `recordings` 最新）→ 启动 Flask → 8 秒后自动打开浏览器。
-按 `Ctrl+C` 退出时自动关闭 ffmpeg 与 mediamtx。
+- `start_all.ps1`：启动 mediamtx → 自动挑选视频推流（`test_video.mp4` / `test_video_2.mp4` / `recordings` 最新）→ Flask → 自动打开浏览器。
+- `start_pc_camera.ps1` / `start_usb_camera.ps1`：启动 mediamtx → ffmpeg 把对应摄像头推成 RTSP → Flask。设备名可用 `-DeviceName` 覆盖，分辨率用 `-VideoSize` / `-Fps`。
+- 按 `Ctrl+C` 退出时自动关闭本次启动的 ffmpeg 与 mediamtx（已在运行的 mediamtx 不会误关）。
 
-> **注意**：`start_all.ps1` 必须保持 **UTF-8 with BOM** 编码，否则 Windows PowerShell 5.1 会因中文乱码导致整脚本解析失败。
+> **注意**：以上脚本均须保持 **UTF-8 with BOM** 编码，否则 Windows PowerShell 5.1 会因中文乱码导致整脚本解析失败。
 
 ### 方式二：手动 3 终端（排障/调试用）
 

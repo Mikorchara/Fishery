@@ -10,7 +10,7 @@
 - WWE-UIE 水下图像增强（FP16 + 可选 torch.compile）
 - DeepSeek LLM 诊断 + RAG（TF-IDF）对话
 - 传感器上报 + SQLite 持久化 + 规则告警
-- 一键启动脚本 `start_all.ps1`（mediamtx + ffmpeg + Flask）
+- 一键启动脚本 `Z_script\start_all.ps1`（mediamtx + ffmpeg + Flask；另有电脑/外接摄像头版 `start_pc_camera.ps1` / `start_usb_camera.ps1`）
 - Git 化并上传 GitHub（https://github.com/Mikorchara/Fishery.git）
 - docs/ 文档整理（ROADMAP / troubleshooting / code_review / BUILD_RUN / structure / deep-dive）
 

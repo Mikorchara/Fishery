@@ -1,6 +1,6 @@
 # 项目输出内容（产物）全览
 
-> 本文整理本项目**运行/脚本/训练产生的所有输出文件**：分别说明其**产生来源**、**内容与格式**、**用途**，以及**清理方式**（对应 `clean_outputs.ps1`）。
+> 本文整理本项目**运行/脚本/训练产生的所有输出文件**：分别说明其**产生来源**、**内容与格式**、**用途**，以及**清理方式**（对应 `Z_script\clean_outputs.ps1`）。
 > 修改代码前可先看这里，避免误删有用数据或对运行依赖文件动手。
 
 ---
@@ -12,21 +12,21 @@
 - **来源**：`app.py` 第 17 行 `logging.basicConfig(..., FileHandler("app.log", encoding="utf-8"))`，与终端 stdout 双写。所有模块（`app` / `ai` / `enhance` / `advisor` / `httpx`）的 INFO 级日志都落在这里。
 - **内容**：启动流程（YOLO/SAM2 加载、WWE-UIE 权重路径、RAG 索引数、服务地址）、收到用户咨询、DeepSeek API 调用状态、退出信号与资源清理。
 - **用途**：**排障第一手资料**——启动是否成功、模型是否加载、AI 是否在调用、哪里报错。
-- **清理**：`clean_outputs.ps1` 第 1 步（`*.log`）。删掉后重启会重新生成。
+- **清理**：`Z_script\clean_outputs.ps1` 第 1 步（`*.log`）。删掉后重启会重新生成。
 
 ### 2. `captures/` — 网页截图
 
 - **来源**：网页「📷 截图」按钮 → `POST /capture_frame`（`app.py` 275 行）→ `cv2.imwrite(captures/capture_{时间戳}.jpg)`。
 - **内容**：当前**最新处理帧**（`last_processed_frame`，即经过增强/AI 叠加后的画面）的 JPEG 快照。
 - **用途**：保存现场证据，事后回看鱼群密度、病害、水质异常；也常被拿去当训练/演示素材。
-- **清理**：`clean_outputs.ps1` 第 2 步（整目录删除）。
+- **清理**：`Z_script\clean_outputs.ps1` 第 2 步（整目录删除）。
 
 ### 3. `recordings/` — 网页录像
 
 - **来源**：网页「⏺ 录制」按钮 → `POST /start_recording`（`app.py` 285 行）→ `cv2.VideoWriter` 尝试 `mp4v → XVID → avc1` 编码；录制期间在视频流线程里把**处理后的帧** `video_writer.write(display_frame)` 写入（`app.py` 86-88 行）；「停止」→ `/stop_recording` 释放 writer。
 - **内容**：`record_{时间戳}.mp4`，30 FPS，编码后的**增强/AI 叠加画面**（非原始流）。
 - **用途**：录制可疑时段做回放分析、喂给标注工具做训练数据集。
-- **清理**：`clean_outputs.ps1 -KeepRecordings N` 保留最新 N 个，否则整目录删。
+- **清理**：`Z_script\clean_outputs.ps1 -KeepRecordings N` 保留最新 N 个，否则整目录删。
 
 ### 4. `data.db`（+ `data.db-wal` / `data.db-shm`）— SQLite 数据库
 
@@ -35,7 +35,7 @@
   - `sensor_history`：`ts` / `temp` / `ph` / `oxygen` —— 传感器历史记录。
   - `event_log`：`ts` / `level` / `message` —— 异常事件日志。
 - **用途**：网页端**传感器趋势图**（`get_sensor_history` 取最近 120 分钟）、异常事件列表（`get_events`）。
-- **注意**：属**有价值历史数据**，默认清理**不删除**；`clean_outputs.ps1 -All` 才会连 `-wal/-shm` 一起删。删后传感器图/事件从零开始。
+- **注意**：属**有价值历史数据**，默认清理**不删除**；`Z_script\clean_outputs.ps1 -All` 才会连 `-wal/-shm` 一起删。删后传感器图/事件从零开始。
 
 ---
 
@@ -52,8 +52,8 @@
     - `fig4_detections.png` — 各模型**平均检出数**对比（带标准差）
   - `scripts/verify_wwe_uie_onnx.py` → `verify_input.jpg` / `verify_pt_output.jpg` / `verify_onnx_output.jpg`：同一帧分别过 PyTorch 版与 ONNX 版增强模型，输出对比图验证一致性。
 - **用途**：模型**选型依据**（对比 9 个模型的延迟 / FPS / 检出数，答辩 PPT 里的性能对比图常来自这里）、确认 ONNX 导出没跑偏。
-- **注意**：目录默认被 `clean_outputs.ps1` 清掉；需要时依次运行 `python scripts/bench_full.py` → `python scripts/plot_bench.py` 重新生成。
-- **清理**：`clean_outputs.ps1` 第 3 步（整目录删）。
+- **注意**：目录默认被 `Z_script\clean_outputs.ps1` 清掉；需要时依次运行 `python scripts/bench_full.py` → `python scripts/plot_bench.py` 重新生成。
+- **清理**：`Z_script\clean_outputs.ps1` 第 3 步（整目录删）。
 
 ---
 
@@ -91,7 +91,7 @@
 
 - **来源**：Python 解释器自动生成的字节码缓存（各包/模块目录下）。
 - **用途**：加速 `import`，无业务价值，可随时删除。
-- **清理**：`clean_outputs.ps1` 附加步（自动跳过 `.venv` 内的，避免影响虚拟环境）。
+- **清理**：`Z_script\clean_outputs.ps1` 附加步（自动跳过 `.venv` 内的，避免影响虚拟环境）。
 
 ---
 
@@ -99,18 +99,18 @@
 
 | 文件 | 说明 |
 |------|------|
-| `test_video.mp4` / `test_video_2.mp4` | `start_all.ps1` 优先选择的 ffmpeg 推流源（本地视频模拟 RTSP）。**是运行依赖**，`clean_outputs.ps1` 明确不删 |
+| `test_video.mp4` / `test_video_2.mp4` | `Z_script\start_all.ps1` 优先选择的 ffmpeg 推流源（本地视频模拟 RTSP）。**是运行依赖**，`Z_script\clean_outputs.ps1` 明确不删 |
 | `test_img.png` | 单帧测试图，供离线脚本验证 |
 
 ---
 
-## 七、清理速查表（对应 `clean_outputs.ps1`）
+## 七、清理速查表（对应 `Z_script\clean_outputs.ps1`）
 
 | 目标 | 命令 | 影响 |
 |------|------|------|
-| 日志 + 截图 + 录像 + 基准 + 缓存 | `.\clean_outputs.ps1` | 常见运行垃圾，可安全清 |
-| 保留最新 N 个录像 | `.\clean_outputs.ps1 -KeepRecordings 3` | 录像留 3 个 |
-| 预览将删内容 | `.\clean_outputs.ps1 -WhatIf` | 不真删 |
-| **连历史数据一起删** | `.\clean_outputs.ps1 -All` | 额外删 `data.db`（传感器/事件历史归零） |
+| 日志 + 截图 + 录像 + 基准 + 缓存 | `Z_script\clean_outputs.ps1` | 常见运行垃圾，可安全清 |
+| 保留最新 N 个录像 | `Z_script\clean_outputs.ps1 -KeepRecordings 3` | 录像留 3 个 |
+| 预览将删内容 | `Z_script\clean_outputs.ps1 -WhatIf` | 不真删 |
+| **连历史数据一起删** | `Z_script\clean_outputs.ps1 -All` | 额外删 `data.db`（传感器/事件历史归零） |
 
 > 红线：**不会**也不应删除 `.venv/`、`models/`、源码、`WWE-UIE/output` 权重、`test_video*.mp4`。

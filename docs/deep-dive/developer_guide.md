@@ -14,22 +14,35 @@
 
 ### 1.1 基础环境
 
-- CUDA 11.8+
+- CUDA 11.8+（项目实测 CUDA 12.6 / PyTorch cu121）
 - FFmpeg 用于H.264视频编码
-- Conda 用于管理虚拟环境
+- Python 3.9+（推荐 3.11，用内置 `venv` 即可，无需装 conda）
 - mediamtx 用于在本地创建RTSP服务器 https://github.com/bluenviron/mediamtx/releases/tag/v1.19.1
 
 ### 1.2 创建虚拟环境
 
+> 当前项目直接用项目根的 `.venv`（Python 3.11）。`venv` 与 conda 对本项目**等价**，只要把包装对即可，不必装 conda。
+
 ```bash
-conda create -n fishery python=3.9
-conda activate fishery
+# Windows PowerShell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+
+# Linux / macOS
+python3 -m venv .venv
+source .venv/bin/activate
 ```
 
 ### 1.3 安装依赖
 
-需要安装pytorch，具体教程上网搜索
-剩下的包可以用以下命令安装，
+先装 GPU 版 PyTorch（CUDA 12.1，与项目一致，会自动带对应 CUDA 运行时）：
+
+```bash
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+```
+
+其余包用以下命令安装：
+
 ```bash
 pip install ultralytics opencv-python flask flask-sock openai scikit-learn numpy
 ```
@@ -117,6 +130,22 @@ ffmpeg -re -stream_loop -1 -i test_video.mp4 -c copy \
 ffmpeg -re -loop 1 -i test_image.jpg -c:v libx264 -tune stillimage \ 
   -pix_fmt yuv420p -rtsp_transport tcp -f rtsp rtsp://127.0.0.1:8554/mystream
 ```
+
+**方式四：真实摄像头（不用视频文件）**
+
+- **网络 / RTSP 摄像头**：把 `config.py` 的 `STREAM_URL` 直接改成摄像头的 RTSP 地址即可（无需 mediamtx），例如
+  `STREAM_URL = "rtsp://用户名:密码@192.168.1.100:554/stream1"`。
+- **USB / 本机摄像头**：系统只拉 RTSP，先用 ffmpeg 把摄像头画面推到 mediamtx（`config.py` 的 `STREAM_URL` 不用改）：
+
+```bash
+# 1) 列出本机摄像头设备名（仅 Windows）
+ffmpeg -f dshow -list_devices true -i dummy
+
+# 2) 把摄像头画面推成 RTSP 流
+ffmpeg -f dshow -framerate 30 -video_size 1280x720 -i video="摄像头名" -c:v libx264 -preset veryfast -tune zerolatency -pix_fmt yuv420p -rtsp_transport tcp -f rtsp rtsp://127.0.0.1:8554/mystream
+```
+
+> 推流前可先 `ffplay -f dshow -i video="摄像头名"` 确认摄像头能正常打开、画面正常。
 
 ### 2.2 启动服务
 

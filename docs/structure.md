@@ -4,7 +4,13 @@
 Fishery_Project/
 ├── app.py                  # Flask 主入口：路由、全局单例、MJPEG/H.264 流
 ├── config.py               # 全局配置：模型路径、阈值、LLM、编码器、认证
-├── start_all.ps1           # 一键启动脚本（mediamtx + ffmpeg + Flask）
+├── Z_script/                 # PowerShell 启动/工具脚本（须 UTF-8 with BOM）
+│   ├── start_all.ps1         # 一键启动：本地视频推流 + Flask
+│   ├── start_pc_camera.ps1   # 电脑内置摄像头启动
+│   ├── start_usb_camera.ps1  # 外接 USB 摄像头启动
+│   ├── check_env.ps1         # 环境就绪自检（只读）
+│   ├── clean_outputs.ps1     # 清理运行产出
+│   └── export_drawio.ps1     # drawio 批量导出（自 scripts/ 迁入）
 ├── AGENTS.md               # 项目指南与修改规范
 ├── README.md               # 开发者指南（环境部分已过时，以 BUILD_RUN.md 为准）
 ├── .gitignore              # Git 忽略规则

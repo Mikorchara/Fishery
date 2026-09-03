@@ -55,7 +55,7 @@ DEEPSEEK_API_KEY=你的API密钥
 装好依赖后可一键自检环境是否就绪（**只读**：不联网、不改环境、不触发 AutoUpdate）：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File check_env.ps1
+powershell -ExecutionPolicy Bypass -File Z_script\check_env.ps1
 # 可选参数：
 #   -SkipGpu    跳过 GPU 探测（无显卡机）
 #   -Deep       额外真实加载模型推理一次（较慢）
@@ -69,12 +69,17 @@ powershell -ExecutionPolicy Bypass -File check_env.ps1
 
 ### 方式一：一键启动（推荐）
 
+启动脚本统一在 `Z_script/`，在项目根按需选用：
+
 ```powershell
 cd d:\Fishery_Project
-.\start_all.ps1
+.\Z_script\start_all.ps1            # ① 本地视频推流（演示）
+.\Z_script\start_pc_camera.ps1      # ② 电脑内置摄像头
+.\Z_script\start_usb_camera.ps1     # ③ 外接 USB 摄像头（真实场景）
 ```
 
-自动完成：mediamtx → ffmpeg 推流 → Flask → 8 秒后自动打开浏览器。
+自动完成：mediamtx → 推流 → Flask → 约 15 秒后自动打开浏览器。
+摄像头脚本启动前会自动检测设备名（不存在则报错退出）；设备名不同时用 `-DeviceName` 指定。
 
 ### 方式二：手动 3 终端
 
