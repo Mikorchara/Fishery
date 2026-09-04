@@ -98,6 +98,8 @@ class FisheryAdvisor:
                 f"给出具体的管理建议和风险预警。"
             )
 
+            # 2026-09-05：默认关闭模型思考（具体参数按模型由 _extra_no_thinking 决定）
+            _eb = self._extra_no_thinking() or {}
             completion = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -108,8 +110,7 @@ class FisheryAdvisor:
                 top_p=0.95,
                 max_tokens=config.LLM_REPORT_MAX_TOKENS,
                 stream=False,
-                # 2026-09-05：默认关闭思考 → 必须放 extra_body（SDK 非标准参数不能展开成顶层参数）
-                extra_body=self._extra_no_thinking() or {},
+                **_eb,
             )
             return completion.choices[0].message.content
         except Exception as e:
@@ -136,6 +137,8 @@ class FisheryAdvisor:
             rag_chunks = self.rag.retrieve(rag_query, top_k=5)
             rag_text = self._format_chunks(rag_chunks)
 
+            # 2026-09-05：默认关闭模型思考（具体参数按模型由 _extra_no_thinking 决定）
+            _eb = self._extra_no_thinking() or {}
             completion = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
@@ -150,8 +153,8 @@ class FisheryAdvisor:
                         f"用户的问题是：{question}"
                     )}
                 ],
-                # 2026-09-05：默认关闭思考 → 必须放 extra_body（SDK 非标准参数不能展开成顶层参数）
-                extra_body=self._extra_no_thinking() or {},
+                # 2026-09-05：默认关闭模型思考（具体参数按模型由 _extra_no_thinking 决定）
+                **_eb,
                 temperature=0.7,
                 max_tokens=config.LLM_CHAT_MAX_TOKENS,
                 stream=False,
@@ -160,95 +163,6 @@ class FisheryAdvisor:
         except Exception as e:
             _log.error("LLM Chat Error: %s", e)
             return f"对话功能暂时不可用: {str(e)}"
-
-    # ---------- 流式（打字机）模式 ----------
-    # 与上方非流式 get_advice / ask_question 构造保持一致，仅 stream=True + yield，供 app.py 的 SSE 端点使用。
-    # 非流式方法保留（旧接口/回退）。2026-09-05 应用内对话与报告已切流式。
-
-    def stream_advice(self, sensor_data):
-        """诊断报告流式：逐段 yield 正文；结尾可能追加“被截断”提示。"""
-        if self.client is None:
-            yield "⚠️ LLM 功能未启用：请设置 DEEPSEEK_API_KEY 环境变量"
-            return
-        try:
-            temp = sensor_data.get("temp", "--")
-            ph = sensor_data.get("ph", "--")
-            oxy = sensor_data.get("oxygen", "--")
-            rule_guide = self.kb.diagnostic_guide(temp, ph, oxy)
-            rag_chunks = self.rag.retrieve(f"水温{temp} pH{ph} 溶解氧{oxy} 养殖管理建议", top_k=4)
-            rag_text = self._format_chunks(rag_chunks)
-            user_content = (
-                f"当前鱼塘实时采样数据：\n1. 水温: {temp} °C\n2. pH值: {ph}\n3. 溶解氧: {oxy} mg/L\n\n"
-                f"---\n## 当前数据诊断\n\n{rule_guide}\n\n"
-                f"---\n## 相关知识库参考\n\n{rag_text}\n\n"
-                f"---\n请结合以上数据、诊断和知识参考，对当前养殖环境进行综合评估，给出具体的管理建议和风险预警。"
-            )
-            resp = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "system", "content": self._base_system_prompt},
-                          {"role": "user", "content": user_content}],
-                temperature=0.7, top_p=0.95,
-                max_tokens=config.LLM_REPORT_MAX_TOKENS, stream=True,
-                extra_body=self._extra_no_thinking() or {})
-            truncated = False
-            for chunk in resp:
-                if not chunk.choices:
-                    continue
-                d = chunk.choices[0].delta
-                piece = getattr(d, "content", None)
-                if piece is None:  # 兼容个别平台正文在 reasoning_content
-                    piece = (getattr(d, "reasoning_content", None) or getattr(d, "reasoning", None))
-                if piece:
-                    yield str(piece)
-                if chunk.choices[0].finish_reason == "length":
-                    truncated = True
-            if truncated:
-                yield "\n\n> ⚠️ 内容超长被截断，可让我分点续写。"
-        except Exception as e:
-            _log.error("LLM Advisor Stream Error: %s", e)
-            yield f"诊断过程出现异常: {str(e)}"
-
-    def stream_answer(self, question, sensor_data):
-        """自由对话流式：逐段 yield 正文；结尾可能追加“被截断”提示。"""
-        if self.client is None:
-            yield "⚠️ LLM 功能未启用：请设置 DEEPSEEK_API_KEY 环境变量"
-            return
-        try:
-            temp = sensor_data.get("temp", "--")
-            ph = sensor_data.get("ph", "--")
-            oxy = sensor_data.get("oxygen", "--")
-            context_data = f"(当前环境参考：水温{temp}℃, pH{ph}, 溶解氧{oxy}mg/L)"
-            rule_guide = self.kb.diagnostic_guide(temp, ph, oxy)
-            rag_chunks = self.rag.retrieve(f"{question} 水温{temp} pH{ph} 溶解氧{oxy}", top_k=5)
-            rag_text = self._format_chunks(rag_chunks)
-            resp = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "system", "content": self._base_system_prompt},
-                          {"role": "user", "content": (
-                              f"{context_data}\n---\n## 当前数据诊断\n\n{rule_guide}\n\n"
-                              f"---\n## 相关知识库参考（RAG 检索）\n\n{rag_text}\n\n"
-                              f"---\n用户的问题是：{question}"
-                          )}],
-                temperature=0.7,
-                max_tokens=config.LLM_CHAT_MAX_TOKENS, stream=True,
-                extra_body=self._extra_no_thinking() or {})
-            truncated = False
-            for chunk in resp:
-                if not chunk.choices:
-                    continue
-                d = chunk.choices[0].delta
-                piece = getattr(d, "content", None)
-                if piece is None:  # 兼容个别平台正文在 reasoning_content
-                    piece = (getattr(d, "reasoning_content", None) or getattr(d, "reasoning", None))
-                if piece:
-                    yield str(piece)
-                if chunk.choices[0].finish_reason == "length":
-                    truncated = True
-            if truncated:
-                yield "\n\n> ⚠️ 内容超长被截断，可让我分点续写。"
-        except Exception as e:
-            _log.error("LLM Chat Stream Error: %s", e)
-            yield f"对话功能暂时不可用: {str(e)}"
 
 
 if __name__ == "__main__":

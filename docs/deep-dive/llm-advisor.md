@@ -102,14 +102,14 @@ def reconfigure(self, base_url, api_key, model):
 
 先读差异表，再看下面任一例子的逐步流水账：
 
-| | `get_advice()`（诊断报告） | `ask_question()`（自由对话） |
-|---|---|---|
-| 什么时候被点 | 「生成当前环境实时诊断报告」 | 聊天框「发送」 |
-| RAG 取几块 | `top_k=4` | `top_k=5` |
-| 检索词 | 固定「水温X pHX 溶氧X …」 | 用「用户问题 + 水温X pHX…」 |
-| user 结尾 | “请综合评估…给出建议” | “用户的问题是：{你的话}” |
-| thinking | 无（一直普通模式） | **已去掉**（2026-09-04，省 token） |
-| 其它 | 一模一样：`temperature=0.7, top_p=0.95, max_tokens=1024, stream=False` |
+|               | `get_advice()`（诊断报告）      | `ask_question()`（自由对话）      |
+|---             |---                            |---                               |
+| 什么时候被点    | 「生成当前环境实时诊断报告」    | 聊天框「发送」                     |
+| RAG 取几块     | `top_k=4`                     | `top_k=5`                         |
+| 检索词         | 固定「水温X pHX 溶氧X …」      | 用「用户问题 + 水温X pHX…」         |
+| user 结尾      | “请综合评估…给出建议”          | “用户的问题是：{你的话}”            |
+| thinking       | 无（一直普通模式）             | **已去掉**（2026-09-04，省 token） |
+| 其它           | 一模一样：`temperature=0.7, top_p=0.95, max_tokens=1024, stream=False` |
 
 ---
 
@@ -179,7 +179,7 @@ return completion.choices[0].message.content   # 把模型整段回答取出来�
 | 回答更长/更短 | `max_tokens=1024`（两处都改） |
 | 更保守/更放飞 | `temperature` |
 | 检索更准(塞更多料) | `top_k`（get_advice=4 / ask_question=5） |
-| 让它打字机式慢慢显示 | `stream=False → True` + 路由改 SSE（尚未做，见 llm-services.md §8） |
+| 让它打字机式慢慢显示 | `stream=False → True` + 路由改 SSE（尚未做，见 llm-services.md §8） |      //!!!!//
 | 让它“记住上几句” | 加历史 messages（见 llm-services.md §6 建议 3） |
 | 换模型服务 | 不用改代码——网页「LLM 服务设置」 |
 | 诊断/对话两个函数重复，想合并 | 可抽公共 `_compose_and_call(user_content)`；低优先级 |

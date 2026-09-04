@@ -104,6 +104,7 @@ docs/patches/
 
 ### 安全规范
 
+- **严禁随意发起付费 LLM/API 联网调用**（对话/诊断报告/测试连接等）。改动代码或验证功能时默认走 `--dry`/本地规则/mock；确需真实调用**必须先征得用户同意**，且限制 `max_tokens`、控制在 1 次请求。
 - `.env`（含 `DEEPSEEK_API_KEY`）已被 `.gitignore` 排除，**禁止提交**。
 - `docs/patches/` 下补丁备份若含 `.env` 等敏感文件，**必须先脱敏**（真实密钥替换为占位符）再入库，并在 `.gitignore` 显式放行（`!docs/patches/**/after/.env`）。
 - 提交前用 `git status` / `git diff --cached` 检查是否混入密钥、大二进制（如 `mediamtx.exe`）。

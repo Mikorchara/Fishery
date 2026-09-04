@@ -2,7 +2,6 @@
 import cv2
 import time
 import os
-import json
 import threading
 import logging
 import sys
@@ -297,41 +296,6 @@ def chat_ai():
         return jsonify({'response': llm_advisor.ask_question(msg, mcu_data)})
     except Exception as e:
         return jsonify({'response': f'对话引擎出了一点小状况: {str(e)}'}), 500
-
-
-# -- LLM 流式（打字机）端点：对话与诊断报告走 SSE；旧非流式端点保留作回退 --
-
-def _sse(generator):
-    """把内容生成器包装成 SSE 事件流；出错也推送 done 避免前端一直等。"""
-    try:
-        for piece in generator:
-            yield "data: " + json.dumps({"delta": piece}, ensure_ascii=False) + "\n\n"
-    except Exception as e:
-        log.error("SSE 流中断: %s", e)
-        yield "data: " + json.dumps({"delta": f"\n\n⚠️ 流式输出中断: {e}"}, ensure_ascii=False) + "\n\n"
-    finally:
-        yield "data: " + json.dumps({"done": True}) + "\n\n"
-
-
-@app.route('/chat_ai_stream', methods=['POST'])
-@require_auth
-def chat_ai_stream():
-    data = request.get_json() or {}
-    msg = data.get('message', '')
-    if not msg:
-        return jsonify({'error': '空消息'}), 400
-    log.info("流式咨询: %s", msg[:100])
-    return Response(_sse(llm_advisor.stream_answer(msg, mcu_data)),
-                    mimetype='text/event-stream',
-                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
-
-
-@app.route('/get_ai_advice_stream', methods=['POST'])
-@require_auth
-def get_ai_advice_stream():
-    return Response(_sse(llm_advisor.stream_advice(mcu_data)),
-                    mimetype='text/event-stream',
-                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
 
 # -- LLM 服务配置管理（新增 / 保存 / 启用 / 禁用，见设置弹窗） --

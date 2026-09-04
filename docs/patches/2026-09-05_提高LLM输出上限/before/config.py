@@ -100,13 +100,6 @@ LLM_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 LLM_BASE_URL = "https://api.deepseek.com"
 LLM_MODEL = "deepseek-v4-flash"
 
-# LLM 输出 token 上限（max_tokens 限制的是“生成/输出”token，不是输入；输入受上下文窗口总长限制）
-# 2026-09-05：原 1024 对“思考型模型 + 长报告”会导致正文被截断（思考 token 也占该预算），故提高并拆两档：
-#  - 报告生成通常较长且思考型模型思考占预算 → 4096
-#  - 自由对话较短 → 2048（若想更快可再调低）
-LLM_REPORT_MAX_TOKENS = 4096
-LLM_CHAT_MAX_TOKENS = 2048
-
 # H.264 WebSocket 编码器: "libx264" (CPU软编) 或 "h264_nvenc" (NVIDIA硬编)
 H264_ENCODER = os.environ.get("H264_ENCODER", "h264_nvenc")
 
