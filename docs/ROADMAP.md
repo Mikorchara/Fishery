@@ -9,6 +9,8 @@
 - YOLO 鱼群检测 / 分割（多模型热切换 + SAM2 / YOLO-seg）
 - WWE-UIE 水下图像增强（FP16 + 可选 torch.compile）
 - DeepSeek LLM 诊断 + RAG（TF-IDF）对话
+- LLM 服务自由切换（2026-09-04）：设置界面多方案管理 —— 地址+Key+模型 新增/保存/启用/禁用/测试连接/获取模型；`core/llm_settings.py` 持久化 `llm_settings.json`（含 Key，gitignore）；`llm_advisor.reconfigure` 运行时热切换，无需重启
+- `ask_question` 去 thinking 改普通模式，省 token（2026-09-04）
 - 传感器上报 + SQLite 持久化 + 规则告警
 - 一键启动脚本 `Z_script\start_all.ps1`（mediamtx + ffmpeg + Flask；另有电脑/外接摄像头版 `start_pc_camera.ps1` / `start_usb_camera.ps1`）
 - Git 化并上传 GitHub（https://github.com/Mikorchara/Fishery.git）

@@ -26,7 +26,6 @@ from core.video_stream import VideoCaptureThreading
 from core.ai_detector import FisheryAI
 from core.enhancer import WWEEnhancer
 from core.llm_advisor import FisheryAdvisor
-import core.llm_settings as llm_settings_cfg
 from core.storage import Storage
 from core.frame_processor import create_frame_processor
 from core.ws_handler import register_ws
@@ -246,39 +245,6 @@ def get_events():
 
 # -- LLM --
 
-def _llm_default_triple():
-    """系统默认三件套（config.py / .env）。"""
-    return config.LLM_BASE_URL, config.LLM_API_KEY, config.LLM_MODEL
-
-
-def _apply_llm_active():
-    """启动时若存有已启用方案则热切换，否则保持系统默认。"""
-    prof = llm_settings_cfg.get_active_profile()
-    if prof:
-        llm_advisor.reconfigure(prof["base_url"], prof["api_key"], prof["model"])
-        log.info("LLM 已启用保存的方案「%s」→ %s", prof["name"], prof["model"])
-
-
-def _llm_err_message(e):
-    """把 openai SDK 异常翻译成中文可读提示。"""
-    import openai
-    if isinstance(e, openai.AuthenticationError):
-        return "API Key 无效或未授权（401），请检查 Key"
-    if isinstance(e, openai.PermissionDeniedError):
-        return "该 API Key 无权访问此服务（403）"
-    if isinstance(e, openai.NotFoundError):
-        return "找不到该模型（404）—— 请点「获取模型」选择服务商真实提供的模型 ID"
-    if isinstance(e, openai.RateLimitError):
-        return "请求过于频繁或账户余额不足（429）"
-    if isinstance(e, openai.APIConnectionError):
-        return "无法连接到该地址，请检查 Base URL 是否正确、网络是否可达"
-    if isinstance(e, openai.BadRequestError):
-        return "请求参数有误（400）：" + str(getattr(e, "message", e))[:120]
-    if isinstance(e, openai.APIStatusError):
-        return f"服务端异常（HTTP {e.status_code}）：{str(getattr(e, 'message', e))[:120]}"
-    return f"连接失败：{str(e)[:160]}"
-
-
 @app.route('/get_ai_advice', methods=['POST'])
 @require_auth
 def get_ai_advice():
@@ -296,126 +262,6 @@ def chat_ai():
         return jsonify({'response': llm_advisor.ask_question(msg, mcu_data)})
     except Exception as e:
         return jsonify({'response': f'对话引擎出了一点小状况: {str(e)}'}), 500
-
-
-# -- LLM 服务配置管理（新增 / 保存 / 启用 / 禁用，见设置弹窗） --
-
-@app.route('/llm_profiles', methods=['GET'])
-@require_auth
-def llm_profiles():
-    """返回所有已保存方案（Key 打码）与当前生效状态。"""
-    profiles, active_id = llm_settings_cfg.list_profiles_masked()
-    base_url, _, model = _llm_default_triple()
-    return jsonify({
-        "profiles": profiles,
-        "active_id": active_id,
-        "default": {"base_url": base_url, "model": model},
-    })
-
-
-@app.route('/llm_profiles/save', methods=['POST'])
-@require_auth
-def llm_profile_save():
-    """新增或更新一套方案；若更新的正是当前启用项则同步热切换（保存即生效）。"""
-    try:
-        profile, is_new = llm_settings_cfg.upsert(request.get_json() or {})
-        active = llm_settings_cfg.get_active_profile()
-        if not is_new and active and profile["id"] == active["id"]:
-            llm_advisor.reconfigure(profile["base_url"], profile["api_key"], profile["model"])
-        return jsonify({"status": "success", "id": profile["id"], "is_new": is_new})
-    except ValueError as e:
-        return jsonify({"status": "error", "message": str(e)}), 400
-    except Exception as e:
-        log.error("保存 LLM 方案失败: %s", e)
-        return jsonify({"status": "error", "message": f"保存失败: {e}"}), 500
-
-
-@app.route('/llm_profiles/activate', methods=['POST'])
-@require_auth
-def llm_profile_activate():
-    """启用某方案：立即重建连接并持久化 active_id，重启后仍生效。"""
-    pid = (request.get_json() or {}).get("id") or ""
-    try:
-        prof = llm_settings_cfg.activate(pid)
-        llm_advisor.reconfigure(prof["base_url"], prof["api_key"], prof["model"])
-        return jsonify({"status": "success", "name": prof["name"], "model": prof["model"]})
-    except ValueError as e:
-        return jsonify({"status": "error", "message": str(e)}), 400
-
-
-@app.route('/llm_profiles/disable', methods=['POST'])
-@require_auth
-def llm_profile_disable():
-    """禁用自定义方案：回落到系统默认（config.py / .env），无需重启。"""
-    llm_settings_cfg.deactivate()
-    base_url, api_key, model = _llm_default_triple()
-    llm_advisor.reconfigure(base_url, api_key, model)
-    return jsonify({"status": "success", "model": model, "base_url": base_url})
-
-
-@app.route('/llm_profiles/delete', methods=['POST'])
-@require_auth
-def llm_profile_delete():
-    """删除方案；若删的正是启用项则自动回落到系统默认。"""
-    pid = (request.get_json() or {}).get("id") or ""
-    was_active = llm_settings_cfg.delete_profile(pid)
-    if was_active:
-        base_url, api_key, model = _llm_default_triple()
-        llm_advisor.reconfigure(base_url, api_key, model)
-    return jsonify({"status": "success"})
-
-
-@app.route('/llm_test', methods=['POST'])
-@require_auth
-def llm_test():
-    """用界面填写的 地址/Key/模型 做一次 1-token 探针，校验三件套。"""
-    d = request.get_json() or {}
-    base_url = (d.get("base_url") or "").strip().rstrip("/")
-    api_key = (d.get("api_key") or "").strip()
-    model = (d.get("model") or "").strip()
-    # Key 留空但给了方案 id → 复用已保存的明文 Key（编辑未改 Key 也能测试）
-    if not api_key and (d.get("id") or ""):
-        saved = llm_settings_cfg.get_profile_by_id(d.get("id"))
-        if saved:
-            api_key = saved.get("api_key", "")
-            base_url = base_url or saved.get("base_url", "")
-            model = model or saved.get("model", "")
-    if not (base_url and api_key and model):
-        return jsonify({"status": "error", "message": "Base URL / API Key / 模型 ID 均需填写（编辑已有方案可留空 Key）"}), 400
-    try:
-        from openai import OpenAI
-        client = OpenAI(base_url=base_url, api_key=api_key, timeout=15)
-        client.chat.completions.create(
-            model=model, messages=[{"role": "user", "content": "ping"}], max_tokens=1)
-        return jsonify({"status": "success", "message": f"连接成功，模型可用：{model}"})
-    except Exception as e:
-        return jsonify({"status": "error", "message": _llm_err_message(e)})
-
-
-@app.route('/llm_models', methods=['POST'])
-@require_auth
-def llm_models():
-    """用 地址+Key 从服务商拉取该 Key 真实可用的模型列表，避免手填错模型 ID。"""
-    d = request.get_json() or {}
-    base_url = (d.get("base_url") or "").strip().rstrip("/")
-    api_key = (d.get("api_key") or "").strip()
-    if not api_key and (d.get("id") or ""):
-        saved = llm_settings_cfg.get_profile_by_id(d.get("id"))
-        if saved:
-            api_key = saved.get("api_key", "")
-            base_url = base_url or saved.get("base_url", "")
-    if not (base_url and api_key):
-        return jsonify({"status": "error", "message": "请先填写 Base URL 与 API Key（编辑已有方案可留空 Key）"}), 400
-    try:
-        from openai import OpenAI
-        client = OpenAI(base_url=base_url, api_key=api_key, timeout=15)
-        ids = sorted(m.id for m in client.models.list().data)
-        if not ids:
-            return jsonify({"status": "error", "message": "该服务未返回任何模型"})
-        return jsonify({"status": "success", "models": ids})
-    except Exception as e:
-        return jsonify({"status": "error", "message": _llm_err_message(e)})
-
 
 # -- 截图 & 录制 --
 
@@ -491,7 +337,6 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, _signal_handler)
     signal.signal(signal.SIGTERM, _signal_handler)
 
-    _apply_llm_active()   # 启动时恢复上次启用的 LLM 方案（若存在）
     log.info("系统启动: http://127.0.0.1:%d", config.WEB_PORT)
     log.info("  MJPEG  (HTTP): http://127.0.0.1:%d/video_feed", config.WEB_PORT)
     log.info("  H.264   (WS):  ws://127.0.0.1:%d/ws_video", config.WEB_PORT)

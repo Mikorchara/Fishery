@@ -2,7 +2,7 @@
 
 ```
 Fishery_Project/
-├── app.py                  # Flask 主入口：路由、全局单例、MJPEG/H.264 流
+├── app.py                  # Flask 主入口（“接线员”：路由+鉴权，把请求转发给各模块，自己不干算法活）
 ├── config.py               # 全局配置：模型路径、阈值、LLM、编码器、认证
 ├── Z_script/                 # PowerShell 启动/工具脚本（须 UTF-8 with BOM）
 │   ├── start_all.ps1         # 一键启动：本地视频推流 + Flask
@@ -24,7 +24,8 @@ Fishery_Project/
 │   ├── custom_yolo.py      # 自定义 YOLO 模型注册
 │   ├── mask_tracker.py     # 掩码跨帧跟踪 + ID 绘制
 │   ├── enhancer.py         # WWE-UIE 水下图像增强（FP16 + 预热）
-│   ├── llm_advisor.py      # DeepSeek 诊断 + 对话（规则诊断 + RAG）
+│   ├── llm_advisor.py      # LLM 诊断 + 对话（规则诊断 + RAG；reconfigure 热切换）
+│   ├── llm_settings.py     # LLM 多服务方案管理（新增/启用/禁用，llm_settings.json 持久化）
 │   ├── storage.py          # SQLite 持久化（传感器历史 / 事件）
 │   ├── h264_streamer.py    # FFmpeg 子进程 H.264 fMP4 编码 + MP4 box 解析
 │   └── ws_handler.py       # WebSocket 视频推流端点
@@ -63,8 +64,54 @@ Fishery_Project/
 
 ## 关键调用链
 
-- **视频**：RTSP → `video_stream`（后台抓帧）→ `frame_processor`（增强→AI→叠加文字）→ MJPEG（`/video_feed`）或 H.264（`ws_handler` → `h264_streamer` → `/ws_video`）
-- **LLM**：请求 → `llm_advisor`（规则诊断 + RAG 检索）→ 拼 prompt → DeepSeek → 返回
-- **传感器**：上报 → `storage`（SQLite）→ 轮询 → 规则告警 → 事件日志
+三条主线互不相干，各看各的。
+
+### ① 视频
+
+```
+RTSP 流 → video_stream（后台抓帧）→ frame_processor（增强→AI→叠加文字）
+         ├─ MJPEG  → GET /video_feed（<img> 显示）
+         └─ H.264  → ws_handler → h264_streamer → WS /ws_video
+```
+
+### ② LLM / AI 建议（核心）
+
+一条消息从“点击”到“回显”的完整链路：
+
+```
+前端 templates/index.html
+ ├─「生成当前环境实时诊断报告」按钮 → POST /get_ai_advice   # 诊断报告
+ ├─ 聊天框「发送」                    → POST /chat_ai        # 自由对话
+ └─ 每隔几秒自动轮询                  → GET  /check_alarm    # 顶部告警条（本地规则，不走 AI）
+
+            ▼ 所有请求都先进 app.py（Flask 主入口 = 接线员，只转发不干活）
+
+app.py（路由层）
+ ├─ /get_ai_advice → llm_advisor.get_advice(mcu_data)          # ① 诊断报告
+ ├─ /chat_ai       → llm_advisor.ask_question(msg, mcu_data)   # ② 自由对话
+ ├─ /check_alarm   → llm_advisor.kb.get_alarms(...)            # ③ 规则告警（本地规则，不调 LLM）
+ ├─ /llm_profiles… /llm_test /llm_models …                     # ④ 「LLM 服务设置」弹窗的接口
+ └─ /video_feed /ws_video /toggle_ai …                         # ⑤ 视频/控制（与 AI 无关）
+
+            ▼ 真正“动脑”的地方（逐行讲解见 deep-dive/llm-advisor.md）
+
+core/llm_advisor.py（FisheryAdvisor —— 养殖专家大脑）
+ ├─ self.client = OpenAI(base_url, api_key, model)  # 连“当前启用”的模型服务
+ ├─ get_advice()   报告：本地规则诊断 + RAG 检索 → 发模型（无 thinking）
+ └─ ask_question() 对话：RAG 检索 → 发模型（普通模式，已去 thinking 省 token）
+
+            ▼ 连哪家服务由谁定？
+
+config.py（系统默认）              llm_settings.py + llm_settings.json（运行时用户配置）
+ LLM_BASE_URL / LLM_MODEL   ←———   「LLM 服务设置」弹窗保存的启用方案
+ （仅作“禁用自定义”后的兜底）          reconfigure() 热替换，改完立即生效、无需重启
+```
+
+### ③ 传感器
+
+```
+上报 POST /update_sensor → storage（SQLite 落库）→ 前端轮询 GET /get_sensor 实时显示
+                      └→ 规则告警 check_alarm → 事件日志（画面右下角）
+```
 
 > 深挖某一部分可看 `docs/deep-dive/`。

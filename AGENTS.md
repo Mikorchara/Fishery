@@ -32,7 +32,8 @@
 | `core/video_stream.py` | RTSP 双线程异步采集 |
 | `core/ai_detector.py` | YOLO 检测/分割 + SAM2 |
 | `core/enhancer.py` | WWE-UIE 水下图像增强 |
-| `core/llm_advisor.py` | LLM 诊断 + RAG 对话 |
+| `core/llm_advisor.py` | LLM 诊断 + RAG 对话（`reconfigure` 支持运行时切换服务） |
+| `core/llm_settings.py` | LLM 多服务方案管理（新增/启用/禁用/测试；`llm_settings.json` 持久化，Key 脱敏入库 gitignore） |
 | `core/frame_processor.py` | 帧处理流水线 |
 | `core/h264_streamer.py` | FFmpeg H.264 编码 |
 | `core/ws_handler.py` | WebSocket 视频推流 |

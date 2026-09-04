@@ -74,3 +74,18 @@
   ```
   （注意：降为 `SilentlyContinue` 会把 stderr 一并吞掉导致匹配不到，必须用 `Continue`；或用 `cmd /c '... 2>&1'` 让 cmd 合并 stderr 也能绕开。）
 - **验证**：`$ErrorActionPreference='Stop'` 下实测——内置 `HP Wide Vision HD Camera` / 外接 `USB Video Device` 均匹配成功，不存在的设备返回 False，全程不抛错。
+
+## 10. 启动脚本退出：Ctrl+C 正常清理；强杀会残留孤儿进程（2026-09-04）
+
+- **现象**：`start_all_with_sensor.ps1`（及 camera 版）若被**强制结束**（任务管理器 / 杀终端进程 / 调试器 Kill），后台的 mediamtx、ffmpeg、传感器模拟器（`datatran_test.py`）不会自动退出，成为孤儿进程继续占用 8554/5000 端口；`scratch\sensor_sim*.log` 也不被清理。
+- **原因**：这些子进程由脚本 `Start-Process` 启动，`finally` 里的清理只在脚本进程**正常收尾**（如收到 `Ctrl+C` 中断）时执行；进程被外部强杀时 `finally` 不会运行。
+- **✅ 正常用法**：在脚本自己的窗口按 `Ctrl+C` 退出即可自动清理，无需手动处理。
+- **若已残留**，手动清理：
+  ```powershell
+  Stop-Process -Name ffmpeg,mediamtx -Force
+  # 若模拟器仍在跑：结束含 datatran_test 的 python 进程，再删日志
+  Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
+    Where-Object { $_.CommandLine -like '*datatran_test*' } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+  Remove-Item D:\Fishery_Project\scratch\sensor_sim*.log -ErrorAction SilentlyContinue
+  ```

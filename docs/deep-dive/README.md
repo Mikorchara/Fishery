@@ -9,6 +9,8 @@
 - `developer_guide.md` — 开发者指南（原 README 详细版迁移至此，环境部分已过时，以 BUILD_RUN.md 为准）
 - `outputs.md` — 项目输出内容（产物）全览：每个输出的产生来源 / 用途 / 清理方式
 - `models-guide.md` — models/ 模型文件分类速查（.pt/.onnx/.om/.yaml 格式与用途），含 ONNX GPU 运行须知
+- `llm-services.md` — LLM/AI 服务全貌：模块文件、调用链、请求上下文构成、多方案热切换、回答慢的原因与优化建议
+- `llm-advisor.md` — `llm_advisor.py` 逐行走读：搞懂“问 AI 一句话代码做了什么”，新手友好、附可改点速查
 
 ## 建议主题
 

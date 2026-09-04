@@ -13,12 +13,15 @@ _log = logging.getLogger("advisor")
 
 class FisheryAdvisor:
     def __init__(self):
+        self.api_key = config.LLM_API_KEY
+        self.base_url = config.LLM_BASE_URL
+        self.model = config.LLM_MODEL
+
+        self.client = OpenAI(base_url=self.base_url, api_key=self.api_key)
+
         self.kb = EelKnowledgeBase()
         self.rag = RAGEngine()
         _log.info("RAG 引擎就绪: %d 个知识块已索引", len(self.rag.chunks))
-
-        # 初始使用系统默认（config.py / .env）；启用某已存方案由 app 层 reconfigure 热切换
-        self.reconfigure(config.LLM_BASE_URL, config.LLM_API_KEY, config.LLM_MODEL)
 
         self._base_system_prompt = (
             "你是一位资深的水产养殖专家，尤其专精于鳗鲡工厂化养殖。"
@@ -28,21 +31,6 @@ class FisheryAdvisor:
             "如果数据为 '--'，说明传感器未连接或未获取到数据。"
             "回答时优先引用鳗鲡养殖的具体参数标准，而非泛泛而谈。"
         )
-
-    def reconfigure(self, base_url, api_key, model):
-        """运行时热切换 LLM 服务：换一套「地址 + Key + 模型」立即生效，无需重启。
-
-        - api_key 为空 → self.client 置 None，调用方会返回“LLM 未启用”提示；
-        - 传回 config 的默认三件套即回落到系统默认。
-        """
-        self.base_url = (base_url or "").strip().rstrip("/")
-        self.api_key = (api_key or "").strip()
-        self.model = (model or "").strip()
-        try:
-            self.client = OpenAI(base_url=self.base_url, api_key=self.api_key) if self.api_key else None
-        except Exception as e:
-            _log.error("创建 LLM client 失败: %s", e)
-            self.client = None
 
     def _format_chunks(self, chunks):
         """将检索到的知识块格式化为 LLM 可读文本。"""
