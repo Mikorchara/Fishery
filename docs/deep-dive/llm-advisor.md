@@ -1,4 +1,4 @@
-# llm_advisor 源码走读（新手友好）
+# llm_advisor 源码走读（新手友好 · 2026-09-05 版）
 
 > 目标：对着 `core/llm_advisor.py`，从第一行到最后一行，搞懂「问 AI 一句话，代码到底做了什么」。
 > 前置：先看 `docs/deep-dive/llm-services.md` 的架构总览与 `docs/structure.md` 的 ② 调用链。
@@ -9,7 +9,7 @@
 
 ```
 app.py（接线员）
-   └─ 把 /chat_ai、/get_ai_advice 转给 →  llm_advisor.py（本文件 = 大脑）
+   └─ 把 /chat_ai_stream、/get_ai_advice_stream 转给 →  llm_advisor.py（本文件 = 大脑）
                                              ├─ 决定「连谁」：OpenAI(base_url, api_key, model)
                                              ├─ 决定「怎么答」：拼 prompt（人设 + 规则 + RAG）
                                              └─ 决定「答什么料」：knowledge/（本地规则+知识库）
@@ -26,14 +26,17 @@ import 部分                  → 拿工具（openai SDK / config / 本地知�
 class FisheryAdvisor:        ← 唯一的一个类
  ├─ __init__()                 出生时：建好本地引擎 + 连默认模型
  ├─ reconfigure()              换“连谁”（设置弹窗热切换用）
+ ├─ _extra_no_thinking()       按模型返回“关思考”的 extra_body（deepseek/qwen 可关；mimo 返回 None）
  ├─ _format_chunks()           把检索出的知识块拼成纯文本
- ├─ get_advice()               「生成诊断报告」入口
- ├─ ask_question()             「自由对话」入口
+ ├─ get_advice()               （回退）诊断报告：非流式一次性
+ ├─ ask_question()             （回退）自由对话：非流式一次性
+ ├─ stream_advice()            诊断报告：流式生成器（2026-09-05 起应用默认走它）
+ ├─ stream_answer()            自由对话：流式生成器（同上）
  └─ __main__ 测试区            不联网也能跑：只测 RAG 检索打不打得准
 ```
 
-> 注意：**诊断(get_advice) 和 对话(ask_question) 几乎一模一样**，只差 3 处（见 §5 表格）。
-> 先读懂其中一个，另一个就通了。
+> 提示：报告与对话的“非流式/流式”两两几乎一样；4 个方法 prompt 构造一致，差异只在是否 stream、是否 yield。
+> 2026-09-05 起应用内默认走 stream_*（SSE 打字机），旧的 get_advice/ask_question 保留作回退。
 
 ---
 
@@ -108,8 +111,9 @@ def reconfigure(self, base_url, api_key, model):
 | RAG 取几块     | `top_k=4`                     | `top_k=5`                         |
 | 检索词         | 固定「水温X pHX 溶氧X …」      | 用「用户问题 + 水温X pHX…」         |
 | user 结尾      | “请综合评估…给出建议”          | “用户的问题是：{你的话}”            |
-| thinking       | 无（一直普通模式）             | **已去掉**（2026-09-04，省 token） |
-| 其它           | 一模一样：`temperature=0.7, top_p=0.95, max_tokens=1024, stream=False` |
+| 输出上限       | `config.LLM_REPORT_MAX_TOKENS`（4096） | `config.LLM_CHAT_MAX_TOKENS`（2048） |
+| 思考           | 默认关（deepseek/qwen 经 extra_body）  | 默认关                             |
+| 返回方式       | 非流式整段（旧）/ 流式逐段（应用当前） | 同左                               |
 
 ---
 
@@ -160,9 +164,11 @@ messages = [
 completion = self.client.chat.completions.create(
     model=self.model,        # 连的是“当前启用”的模型（默认 deepseek-v4-flash）
     messages=messages,       # 上面拼好的材料
-    temperature=0.7, top_p=0.95, max_tokens=1024, stream=False,
+    temperature=0.7, top_p=0.95,
+    max_tokens=config.LLM_CHAT_MAX_TOKENS,           # 2048（报告用 REPORT_MAX_TOKENS=4096）
+    extra_body=self._extra_no_thinking() or {},      # 默认关思考（非标准参数必须走 extra_body）
 )
-return completion.choices[0].message.content   # 把模型整段回答取出来返回
+return completion.choices[0].message.content   # 非流式整段返回（应用当前走 stream_answer 打字机）
 ```
 
 > **为什么 prompt 要塞那么多规则和知识？**
@@ -176,7 +182,7 @@ return completion.choices[0].message.content   # 把模型整段回答取出来�
 | 想改什么 | 改哪 |
 |---|---|
 | 让 AI 说话口吻/人设 | `__init__` 里的 `_base_system_prompt` |
-| 回答更长/更短 | `max_tokens=1024`（两处都改） |
+| 回答更长/更短 | `config.py` 的 `LLM_REPORT_MAX_TOKENS` / `LLM_CHAT_MAX_TOKENS` |
 | 更保守/更放飞 | `temperature` |
 | 检索更准(塞更多料) | `top_k`（get_advice=4 / ask_question=5） |
 | 让它打字机式慢慢显示 | `stream=False → True` + 路由改 SSE（尚未做，见 llm-services.md §8） |      //!!!!//

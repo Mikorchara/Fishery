@@ -89,3 +89,24 @@
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
   Remove-Item D:\Fishery_Project\scratch\sensor_sim*.log -ErrorAction SilentlyContinue
   ```
+
+## 11. OpenAI SDK：非标准参数必须放 extra_body（2026-09-05）
+
+- **现象**：调用 DeepSeek / Qwen 报 `Completions.create() got an unexpected keyword argument 'thinking'`；切到任一“可关思考”的模型都失败。
+- **原因**：`thinking` / `enable_thinking` 是各平台**非标准参数**，OpenAI SDK 只接受放在 `extra_body={...}` 里透传；若用 `**dict` 展开成顶层关键字（`thinking=...`），SDK 直接报“未知关键字”。
+- **解决**：一律写成 `extra_body=self._extra_no_thinking() or {}`（见 `core/llm_advisor.py` 4 处 create）。注意：`scratch/stream_compare_server.py` 一直正确，正式代码曾误用 `**_eb` 展开——两处必须保持一致。
+- **验证**：`scratch/verify_extra_body.py`（假 client 离线拦截 create 入参，零成本）确认三种模型分支：qwen→enable_thinking=False；deepseek-v4→thinking.disabled；mimo→不传/空。
+- **教训**：SDK 扩展参数先查官方文档/用 `extra_body`，别想当然 `**dict` 展开成 kwargs。
+
+## 12. 思考型模型：max_tokens 预算“含思考”→ 正文被挤掉、只见草稿（2026-09-05）
+
+- **现象**：MIMO（mimo-v2.5，无法关思考）自由问答慢；曾出现“输出像思考草稿、无组织”；思考过长时**没有正式回答**（content 为空）。
+- **解释（计费 ≠ 预算，勿混淆）**：
+  - 计费：思考(reasoning)与正文(content)都是输出 token，**都计费**（各家皆同）。
+  - 预算：部分平台（MiMo、DeepSeek-R1-0528 等）的 `max_tokens` 是“思考+正文**总额**上限”；思考很长会先把额度吃光 → `length` 截断 → `content` 为空，只剩草稿（草稿仍计费）。
+  - 所以不是“都计费所以正文必有”，而是“思考占满额度 → 正文来不及生成”。
+- **解决（本项目已落地）**：
+  - 能关思考的（DeepSeek/Qwen）：默认 `extra_body` 关思考 → 又快又省（实测 DeepSeek 关思考后 3 次提问约 ¥0.1，原因=不再生成大量 reasoning token）。
+  - 关不了的（MiMo）：`config.LLM_REPORT_MAX_TOKENS/LLM_CHAT_MAX_TOKENS` 调大给足预算（2026-09-05 已 4096/2048）；
+    流式只发 `content`、思考不进正文；思考过长仍无正文 → 给出换模型提示（补丁 `2026-09-05_MIMO思考不进正文`）。
+- **费用经验**：思考 token 是烧钱大头；关思考 / 用 flash 档 / 控制输出预算，是省钱三招。

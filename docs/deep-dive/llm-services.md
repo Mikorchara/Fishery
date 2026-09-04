@@ -2,6 +2,19 @@
 
 > 讲解本项目「AI 智慧养殖对话 / 实时诊断报告」背后：模块文件、两条调用链、**每次请求真正发给模型的上下文构成**、多方案热切换机制，以及「回答慢」的解剖与优化建议。适用版本：2026-09-04（LLM 多服务自由切换落地后）。
 
+## ⚠️ 2026-09-05 重大变更（下文“旧状态”段为历史参考，请以本块为准）
+
+- **对话与诊断报告已改流式打字机**：`llm_advisor` 新增 `stream_advice/stream_answer`（只发 `content`、丢弃思考）；
+  `app.py` 新增 SSE `/chat_ai_stream`、`/get_ai_advice_stream`；前端逐字显示、完成再渲染 Markdown。
+  实测（qwen3.5-flash 同题同参）：流式首字 0.99s vs 非流式一次性 13.54s。补丁 `2026-09-05_对话报告流式打字机`。
+- **默认关闭思考**：`_extra_no_thinking()` 按模型注入 `extra_body`（deepseek-v4→`thinking.disabled`、qwen→`enable_thinking=false`；
+  MiMo-V2.5 无法关闭 → 不传）。效果：DeepSeek 3 次提问约 ¥0.1（省掉的 reasoning token 是烧钱大头）。补丁 `2026-09-05_默认关闭LLM思考`。
+- **输出上限配置化**：`config.LLM_REPORT_MAX_TOKENS=4096`、`LLM_CHAT_MAX_TOKENS=2048`（解决思考型模型正文被截断）。补丁 `2026-09-05_提高LLM输出上限`。
+- **关键认知**：多家平台 `max_tokens` 是“思考+正文总额”上限 → 思考过长会把正文挤出（content 空、只见草稿、草稿仍计费）。补丁 `2026-09-05_MIMO思考不进正文`；详见 `troubleshooting.md` #11/#12。
+- 上述 4 个补丁均有 before/after 与 CHANGES，位于 `docs/patches/2026-09-05_*`。
+
+---
+
 ---
 
 ## 1. 一句话概览

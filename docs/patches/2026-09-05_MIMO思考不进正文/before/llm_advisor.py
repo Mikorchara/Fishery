@@ -190,24 +190,20 @@ class FisheryAdvisor:
                 temperature=0.7, top_p=0.95,
                 max_tokens=config.LLM_REPORT_MAX_TOKENS, stream=True,
                 extra_body=self._extra_no_thinking() or {})
-            # 2026-09-05 修订：只发正式正文 content；思考(reasoning_content)不进正文——
-            # 否则“无法关思考”的模型（如 MiMo）会把思考草稿当回答显示。
             truncated = False
-            content_seen = False
             for chunk in resp:
                 if not chunk.choices:
                     continue
                 d = chunk.choices[0].delta
                 piece = getattr(d, "content", None)
+                if piece is None:  # 兼容个别平台正文在 reasoning_content
+                    piece = (getattr(d, "reasoning_content", None) or getattr(d, "reasoning", None))
                 if piece:
-                    content_seen = True
                     yield str(piece)
                 if chunk.choices[0].finish_reason == "length":
                     truncated = True
             if truncated:
                 yield "\n\n> ⚠️ 内容超长被截断，可让我分点续写。"
-            elif not content_seen:
-                yield "\n\n> ⚠️ 该模型未输出正式正文（思考过长或平台把正文放其它字段），建议换 DeepSeek/Qwen 或缩短问题。"
         except Exception as e:
             _log.error("LLM Advisor Stream Error: %s", e)
             yield f"诊断过程出现异常: {str(e)}"
@@ -236,24 +232,20 @@ class FisheryAdvisor:
                 temperature=0.7,
                 max_tokens=config.LLM_CHAT_MAX_TOKENS, stream=True,
                 extra_body=self._extra_no_thinking() or {})
-            # 2026-09-05 修订：只发正式正文 content；思考(reasoning_content)不进正文——
-            # 否则“无法关思考”的模型（如 MiMo）会把思考草稿当回答显示。
             truncated = False
-            content_seen = False
             for chunk in resp:
                 if not chunk.choices:
                     continue
                 d = chunk.choices[0].delta
                 piece = getattr(d, "content", None)
+                if piece is None:  # 兼容个别平台正文在 reasoning_content
+                    piece = (getattr(d, "reasoning_content", None) or getattr(d, "reasoning", None))
                 if piece:
-                    content_seen = True
                     yield str(piece)
                 if chunk.choices[0].finish_reason == "length":
                     truncated = True
             if truncated:
                 yield "\n\n> ⚠️ 内容超长被截断，可让我分点续写。"
-            elif not content_seen:
-                yield "\n\n> ⚠️ 该模型未输出正式正文（思考过长或平台把正文放其它字段），建议换 DeepSeek/Qwen 或缩短问题。"
         except Exception as e:
             _log.error("LLM Chat Stream Error: %s", e)
             yield f"对话功能暂时不可用: {str(e)}"
