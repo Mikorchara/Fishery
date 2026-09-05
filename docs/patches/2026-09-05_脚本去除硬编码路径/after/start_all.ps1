@@ -18,17 +18,13 @@ $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "User") + ";" +
 $mtx = $null
 $ffmpeg = $null
 
-# ffmpeg：优先用项目内自带 (tools\ffmpeg\bin)，找不到回退系统 PATH
-if (Test-Path "$Root\tools\ffmpeg\bin\ffmpeg.exe") { $ffmpegExe = "$Root\tools\ffmpeg\bin\ffmpeg.exe" }
-else { $ffmpegExe = "ffmpeg" }
-
 try {
     # ---------- 1. mediamtx（本地 RTSP 服务器） ----------
     Write-Host "[1/3] 启动 mediamtx (RTSP 服务器)..." -ForegroundColor Cyan
-    if (Test-Path "$Root\tools\mediamtx\mediamtx.exe") {
+    if (Test-Path "$Root\mediamtx\mediamtx.exe") {
         try {
-            $mtx = Start-Process -FilePath "$Root\tools\mediamtx\mediamtx.exe" `
-                -WorkingDirectory "$Root\tools\mediamtx" -PassThru -WindowStyle Hidden
+            $mtx = Start-Process -FilePath "$Root\mediamtx\mediamtx.exe" `
+                -WorkingDirectory "$Root\mediamtx" -PassThru -WindowStyle Hidden
             Start-Sleep -Seconds 2
         } catch {
             Write-Host "  [警告] mediamtx 启动失败: $_" -ForegroundColor Yellow
@@ -38,20 +34,20 @@ try {
     }
 
     # ---------- 2. ffmpeg 推流（本地视频 → RTSP） ----------
-    # 自动挑选视频源：优先项目根目录的 test_video*.mp4，其次 outputs/videos 里最新的
+    # 自动挑选视频源：优先项目根目录的 test_video*.mp4，其次 recordings/ 里最新的
     $video = $null
     foreach ($cand in @("$Root\test_video.mp4", "$Root\test_video_2.mp4")) {
         if (Test-Path $cand) { $video = $cand; break }
     }
     if (-not $video) {
-        $latest = Get-ChildItem "$Root\outputs\videos" -Include *.mp4 -File -ErrorAction SilentlyContinue |
+        $latest = Get-ChildItem "$Root\recordings" -Include *.mp4 -File -ErrorAction SilentlyContinue |
                   Sort-Object LastWriteTime -Descending | Select-Object -First 1
         if ($latest) { $video = $latest.FullName }
     }
     if ($video) {
         Write-Host "[2/3] ffmpeg 推流: $video" -ForegroundColor Cyan
         try {
-            $ffmpeg = Start-Process -FilePath $ffmpegExe -ArgumentList @(
+            $ffmpeg = Start-Process -FilePath "ffmpeg" -ArgumentList @(
                 "-re", "-stream_loop", "-1", "-i", $video,
                 "-c", "copy", "-rtsp_transport", "tcp",
                 "-f", "rtsp", "rtsp://127.0.0.1:8554/mystream"

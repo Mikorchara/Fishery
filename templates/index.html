@@ -299,6 +299,17 @@
                 <video id="videoPlayer" autoplay muted playsinline style="display:none; max-width:100%; max-height:100%; object-fit:contain;"></video>
                 <img id="fallbackImg" src="/video_feed" alt="等待视频流接入..." style="max-width:100%; max-height:100%; object-fit:contain;">
             </div>
+
+            <!-- 记录回看：预留区域（待接入 截图/录像/AI 对话历史 浏览），位置待用户确认 -->
+            <div class="card" data-collapsible style="margin-top:8px; padding:8px; flex-shrink:0;">
+                <div class="card-head" data-toggle>
+                    <h3>记录回看</h3>
+                    <button class="card-toggle" title="折叠/展开">−</button>
+                </div>
+                <div class="card-body" style="color: var(--text-muted); font-size: 12px; line-height: 1.6;">
+                    预留区域：将展示 截图 / 录像 / AI 对话历史（待接入）
+                </div>
+            </div>
         </div>
 
         <div class="resize-handle" id="resizeHandle"></div>

@@ -55,14 +55,14 @@ try {
     # ---------- 1. mediamtx（本地 RTSP 服务器） ----------
     if (Get-NetTCPConnection -LocalPort 8554 -State Listen -ErrorAction SilentlyContinue) {
         Write-Host "[1/3] mediamtx 已在运行 (:8554)，跳过启动" -ForegroundColor Yellow
-    } elseif (Test-Path "$Root\tools\mediamtx\mediamtx.exe") {
+    } elseif (Test-Path "$Root\mediamtx\mediamtx.exe") {
         Write-Host "[1/3] 启动 mediamtx (RTSP 服务器)..." -ForegroundColor Cyan
-        $mtx = Start-Process -FilePath "$Root\tools\mediamtx\mediamtx.exe" `
-            -WorkingDirectory "$Root\tools\mediamtx" -PassThru -WindowStyle Hidden
+        $mtx = Start-Process -FilePath "$Root\mediamtx\mediamtx.exe" `
+            -WorkingDirectory "$Root\mediamtx" -PassThru -WindowStyle Hidden
         $startedMtx = $true
         Start-Sleep -Seconds 2
     } else {
-        throw "找不到 mediamtx.exe：$Root\tools\mediamtx\mediamtx.exe"
+        throw "找不到 mediamtx.exe：$Root\mediamtx\mediamtx.exe"
     }
 
     # ---------- 2. ffmpeg 推摄像头 → RTSP ----------

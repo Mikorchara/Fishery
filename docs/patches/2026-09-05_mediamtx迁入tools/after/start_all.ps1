@@ -38,13 +38,13 @@ try {
     }
 
     # ---------- 2. ffmpeg 推流（本地视频 → RTSP） ----------
-    # 自动挑选视频源：优先项目根目录的 test_video*.mp4，其次 outputs/videos 里最新的
+    # 自动挑选视频源：优先项目根目录的 test_video*.mp4，其次 recordings/ 里最新的
     $video = $null
     foreach ($cand in @("$Root\test_video.mp4", "$Root\test_video_2.mp4")) {
         if (Test-Path $cand) { $video = $cand; break }
     }
     if (-not $video) {
-        $latest = Get-ChildItem "$Root\outputs\videos" -Include *.mp4 -File -ErrorAction SilentlyContinue |
+        $latest = Get-ChildItem "$Root\recordings" -Include *.mp4 -File -ErrorAction SilentlyContinue |
                   Sort-Object LastWriteTime -Descending | Select-Object -First 1
         if ($latest) { $video = $latest.FullName }
     }

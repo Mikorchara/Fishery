@@ -188,7 +188,7 @@ check_env.ps1
 - `app.py` / `core/*` 真实第三方依赖：flask、flask-sock、cv2、openai、torch(+torchvision)、ultralytics、numpy、scikit-learn(可回退)。
 - 外部程序：ffmpeg（推流 + H.264 编码）、mediamtx.exe（RTSP）。
 - 自定义模块：鱼模型依赖 `core/custom_yolo.py` 运行时注册（D4 深度检查已内置 register）。
-- 运行时自动创建：`captures/`、`recordings/`、`data.db`、`app.log` —— 无需预置，不纳入必查。
+- 运行时自动创建：`outputs/images`、`outputs/videos`、`outputs/chats`、`data.db`、`app.log` —— 无需预置，不纳入必查。
 
 ---
 

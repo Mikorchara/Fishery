@@ -2,7 +2,7 @@
 #
 # 用法（在项目根下执行；脚本用 $PSScriptRoot 自动定位项目根）：
 #   .\Z_script\clean_outputs.ps1                     # 清理日志/截图/录像/基准/__pycache__
-#   .\Z_script\clean_outputs.ps1 -All                # 额外删除 data.db + 对话文本 outputs/chats
+#   .\Z_script\clean_outputs.ps1 -All                # 额外删除 data.db（传感器历史）
 #   .\Z_script\clean_outputs.ps1 -KeepRecordings 3   # 录像保留最新 3 个
 #   .\Z_script\clean_outputs.ps1 -WhatIf             # 预览模式：只显示将删除的内容，不执行
 #
@@ -51,31 +51,30 @@ Get-ChildItem $Root -Filter *.log -File -ErrorAction SilentlyContinue | ForEach-
     Remove-Target $_.FullName $false
 }
 
-# 2. 截图 + 录像（outputs/images、outputs/videos）
-Write-Host "[2/4] outputs/images + outputs/videos" -ForegroundColor Cyan
-Remove-Target "$Root\outputs\images" $true
-if ($KeepRecordings -gt 0 -and (Test-Path "$Root\outputs\videos")) {
-    Get-ChildItem "$Root\outputs\videos" -File -ErrorAction SilentlyContinue |
+# 2. 截图 + 录像
+Write-Host "[2/4] captures / recordings" -ForegroundColor Cyan
+Remove-Target "$Root\captures" $true
+if ($KeepRecordings -gt 0 -and (Test-Path "$Root\recordings")) {
+    Get-ChildItem "$Root\recordings" -File -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTime -Descending |
         Select-Object -Skip $KeepRecordings |
         ForEach-Object { Remove-Target $_.FullName $false }
 } else {
-    Remove-Target "$Root\outputs\videos" $true
+    Remove-Target "$Root\recordings" $true
 }
 
 # 3. 基准输出
 Write-Host "[3/4] bench_output" -ForegroundColor Cyan
 Remove-Target "$Root\bench_output" $true
 
-# 4. SQLite 数据库 + AI 对话文本（可选，-All 才删）
-Write-Host "[4/4] data.db + outputs/chats" -ForegroundColor Cyan
+# 4. SQLite 数据库（可选）
+Write-Host "[4/4] data.db" -ForegroundColor Cyan
 if ($All) {
     Remove-Target "$Root\data.db" $false
     Remove-Target "$Root\data.db-shm" $false
     Remove-Target "$Root\data.db-wal" $false
-    Remove-Target "$Root\outputs\chats" $true
 } else {
-    Write-Host "  - 跳过 data.db / outputs\chats（加 -All 才删除）" -ForegroundColor DarkGray
+    Write-Host "  - 跳过 data.db（加 -All 才删除）" -ForegroundColor DarkGray
 }
 
 # 附加：__pycache__（不碰 .venv 里的）

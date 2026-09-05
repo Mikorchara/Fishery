@@ -2,14 +2,15 @@
 # 依次启动 mediamtx(RTSP服务器) + ffmpeg(本地视频推流) + Flask(Web服务)，
 # 退出时自动关闭 mediamtx 和 ffmpeg。
 #
-# 用法（在项目根下执行；脚本用 $PSScriptRoot 自动定位项目根，不依赖固定盘符）：
-#   powershell -ExecutionPolicy Bypass -File .\Z_script\start_all.ps1
+# 用法（在项目根 D:\Fishery_Project 下执行）：
+#   powershell -ExecutionPolicy Bypass -File d:\Fishery_Project\Z_script\start_all.ps1
+#   （或 cd d:\Fishery_Project 后执行 .\Z_script\start_all.ps1）
 #
 # 浏览器打开 http://127.0.0.1:5000 ，按 Ctrl+C 停止。
 # 注意：本文件必须以 UTF-8 with BOM 保存，否则 Windows PowerShell 5.1 会乱码报错。
 
 $ErrorActionPreference = "Stop"
-$Root = Split-Path $PSScriptRoot -Parent   # Z_script 的上一级 = 项目根
+$Root = "D:\Fishery_Project"
 Set-Location $Root
 
 # 刷新 PATH（ffmpeg 手动安装时，新终端可能拿不到）
@@ -18,17 +19,13 @@ $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "User") + ";" +
 $mtx = $null
 $ffmpeg = $null
 
-# ffmpeg：优先用项目内自带 (tools\ffmpeg\bin)，找不到回退系统 PATH
-if (Test-Path "$Root\tools\ffmpeg\bin\ffmpeg.exe") { $ffmpegExe = "$Root\tools\ffmpeg\bin\ffmpeg.exe" }
-else { $ffmpegExe = "ffmpeg" }
-
 try {
     # ---------- 1. mediamtx（本地 RTSP 服务器） ----------
     Write-Host "[1/3] 启动 mediamtx (RTSP 服务器)..." -ForegroundColor Cyan
-    if (Test-Path "$Root\tools\mediamtx\mediamtx.exe") {
+    if (Test-Path "$Root\mediamtx\mediamtx.exe") {
         try {
-            $mtx = Start-Process -FilePath "$Root\tools\mediamtx\mediamtx.exe" `
-                -WorkingDirectory "$Root\tools\mediamtx" -PassThru -WindowStyle Hidden
+            $mtx = Start-Process -FilePath "$Root\mediamtx\mediamtx.exe" `
+                -WorkingDirectory "$Root\mediamtx" -PassThru -WindowStyle Hidden
             Start-Sleep -Seconds 2
         } catch {
             Write-Host "  [警告] mediamtx 启动失败: $_" -ForegroundColor Yellow
@@ -38,20 +35,20 @@ try {
     }
 
     # ---------- 2. ffmpeg 推流（本地视频 → RTSP） ----------
-    # 自动挑选视频源：优先项目根目录的 test_video*.mp4，其次 outputs/videos 里最新的
+    # 自动挑选视频源：优先项目根目录的 test_video*.mp4，其次 recordings/ 里最新的
     $video = $null
     foreach ($cand in @("$Root\test_video.mp4", "$Root\test_video_2.mp4")) {
         if (Test-Path $cand) { $video = $cand; break }
     }
     if (-not $video) {
-        $latest = Get-ChildItem "$Root\outputs\videos" -Include *.mp4 -File -ErrorAction SilentlyContinue |
+        $latest = Get-ChildItem "$Root\recordings" -Include *.mp4 -File -ErrorAction SilentlyContinue |
                   Sort-Object LastWriteTime -Descending | Select-Object -First 1
         if ($latest) { $video = $latest.FullName }
     }
     if ($video) {
         Write-Host "[2/3] ffmpeg 推流: $video" -ForegroundColor Cyan
         try {
-            $ffmpeg = Start-Process -FilePath $ffmpegExe -ArgumentList @(
+            $ffmpeg = Start-Process -FilePath "ffmpeg" -ArgumentList @(
                 "-re", "-stream_loop", "-1", "-i", $video,
                 "-c", "copy", "-rtsp_transport", "tcp",
                 "-f", "rtsp", "rtsp://127.0.0.1:8554/mystream"

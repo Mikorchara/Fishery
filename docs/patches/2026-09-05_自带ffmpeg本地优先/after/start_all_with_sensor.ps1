@@ -31,10 +31,10 @@ try {
     # ---------- 1. mediamtx（本地 RTSP 服务器） ----------
     if (Get-NetTCPConnection -LocalPort 8554 -State Listen -ErrorAction SilentlyContinue) {
         Write-Host "[1/4] mediamtx 已在运行 (:8554)，跳过启动" -ForegroundColor Yellow
-    } elseif (Test-Path "$Root\tools\mediamtx\mediamtx.exe") {
+    } elseif (Test-Path "$Root\mediamtx\mediamtx.exe") {
         Write-Host "[1/4] 启动 mediamtx (RTSP 服务器)..." -ForegroundColor Cyan
-        $mtx = Start-Process -FilePath "$Root\tools\mediamtx\mediamtx.exe" `
-            -WorkingDirectory "$Root\tools\mediamtx" -PassThru -WindowStyle Hidden
+        $mtx = Start-Process -FilePath "$Root\mediamtx\mediamtx.exe" `
+            -WorkingDirectory "$Root\mediamtx" -PassThru -WindowStyle Hidden
         $startedMtx = $true
         Start-Sleep -Seconds 2
     } else {
@@ -42,13 +42,12 @@ try {
     }
 
     # ---------- 2. ffmpeg 推流（本地视频 → RTSP） ----------
-    # 自动挑选视频源：优先项目根目录的 test_video*.mp4，其次 outputs/videos 里最新的
     $video = $null
     foreach ($cand in @("$Root\test_video.mp4", "$Root\test_video_2.mp4")) {
         if (Test-Path $cand) { $video = $cand; break }
     }
     if (-not $video) {
-        $latest = Get-ChildItem "$Root\outputs\videos" -Include *.mp4 -File -ErrorAction SilentlyContinue |
+        $latest = Get-ChildItem "$Root\recordings" -Include *.mp4 -File -ErrorAction SilentlyContinue |
                   Sort-Object LastWriteTime -Descending | Select-Object -First 1
         if ($latest) { $video = $latest.FullName }
     }

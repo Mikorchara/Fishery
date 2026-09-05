@@ -119,26 +119,20 @@ if ($osInfo) {
     Emit "PASS" "操作系统" "Windows"
 }
 
-# ffmpeg：优先用项目内自带 (tools\ffmpeg\bin)，找不到回退系统 PATH
-$ffmpeg = ""
-if (Test-Path "$Root\tools\ffmpeg\bin\ffmpeg.exe") { $ffmpeg = "$Root\tools\ffmpeg\bin\ffmpeg.exe" }
-if (-not $ffmpeg) {
-    $g = Get-Command ffmpeg -ErrorAction SilentlyContinue
-    if ($g) { $ffmpeg = $g.Source }
-}
+$ffmpeg = Get-Command ffmpeg -ErrorAction SilentlyContinue
 if ($ffmpeg) {
-    Emit "PASS" "ffmpeg 可用" $ffmpeg
-    $nvenc = & $ffmpeg -hide_banner -encoders 2>$null | Select-String "nvenc"
+    Emit "PASS" "ffmpeg 可用" $ffmpeg.Source
+    $nvenc = & ffmpeg -hide_banner -encoders 2>$null | Select-String "nvenc"
     if ($nvenc) { Emit "INFO" "ffmpeg 支持 h264_nvenc" "H.264 GPU 硬编可用" }
     else { Emit "WARN" "ffmpeg 无 h264_nvenc" "将回退 CPU 软编 (libx264)，可在 config.py 改 H264_ENCODER" }
 } else {
-    Emit "FAIL" "ffmpeg 可用" "未找到 ffmpeg（项目内 tools\ffmpeg\bin 或系统 PATH 均无），推流/H.264 必需"
+    Emit "FAIL" "ffmpeg 可用" "未找到 ffmpeg，请安装并加入 PATH（推流/H.264 必需）"
 }
 
-if (Test-Path (Join-Path $Root "tools\mediamtx\mediamtx.exe")) {
+if (Test-Path (Join-Path $Root "mediamtx\mediamtx.exe")) {
     Emit "PASS" "mediamtx.exe 存在"
 } else {
-    Emit "FAIL" "mediamtx.exe 存在" "缺少 tools\mediamtx\mediamtx.exe（本地 RTSP 服务器）"
+    Emit "FAIL" "mediamtx.exe 存在" "缺少 mediamtx\mediamtx.exe（本地 RTSP 服务器）"
 }
 
 $nvidiaSmi = Get-Command nvidia-smi -ErrorAction SilentlyContinue
@@ -157,7 +151,7 @@ if ($ffmpeg) {
     $prev = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     try {
-        $devOut = (& $ffmpeg -hide_banner -f dshow -list_devices true -i dummy 2>&1 | Out-String)
+        $devOut = (& ffmpeg -hide_banner -f dshow -list_devices true -i dummy 2>&1 | Out-String)
     } finally {
         $ErrorActionPreference = $prev
     }

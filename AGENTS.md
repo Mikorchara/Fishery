@@ -149,7 +149,7 @@ cd d:\Fishery_Project
 .\Z_script\start_all_with_sensor.ps1
 ```
 
-- `start_all.ps1`：启动 mediamtx → 自动挑选视频推流（`test_video.mp4` / `test_video_2.mp4` / `recordings` 最新）→ Flask → 自动打开浏览器。
+- `start_all.ps1`：启动 mediamtx → 自动挑选视频推流（`test_video.mp4` / `test_video_2.mp4` / `outputs/videos` 最新）→ Flask → 自动打开浏览器。
 - `start_pc_camera.ps1` / `start_usb_camera.ps1`：启动 mediamtx → ffmpeg 把对应摄像头推成 RTSP → Flask。设备名可用 `-DeviceName` 覆盖，分辨率用 `-VideoSize` / `-Fps`。
 - `start_all_with_sensor.ps1`：在 `start_all.ps1` 基础上**自动附带传感器模拟器**（`tests/datatran_test.py` 后台循环上报），开箱即有波动的实时水质数据，可直接生成完整 AI 报告。
 - 按 `Ctrl+C` 退出时自动关闭本次启动的 传感器模拟器/ffmpeg/mediamtx（已在运行的 mediamtx 不会误关）。
@@ -158,7 +158,9 @@ cd d:\Fishery_Project
 
 ### 方式二：手动 3 终端（排障/调试用）
 
-> **重要**：如果 ffmpeg 是手动安装的，每个新终端需先刷新 PATH：
+> **说明**：项目已在 `tools\ffmpeg\bin` 自带 ffmpeg，`Z_script` 一键启动脚本会自动优先使用，无需手动安装。
+> 若在本手动方式下系统 PATH 无 ffmpeg，可用项目内版本 `tools\ffmpeg\bin\ffmpeg.exe`；
+> 若 ffmpeg 是手动安装的，新终端可能需先刷新 PATH：
 > ```powershell
 > $env:Path = [System.Environment]::GetEnvironmentVariable("Path","User") + ";" + [System.Environment]::GetEnvironmentVariable("Path","Machine")
 > ```
@@ -166,7 +168,7 @@ cd d:\Fishery_Project
 ### 终端 1 — mediamtx（RTSP 服务器）
 
 ```powershell
-cd d:\Fishery_Project\mediamtx
+cd d:\Fishery_Project\tools\mediamtx
 .\mediamtx.exe
 ```
 

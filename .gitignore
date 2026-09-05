@@ -63,9 +63,8 @@ eval_result.json
 llm_settings.json
 .env
 
-# Screenshot captures
-captures/
-recordings/
+# 运行产物：截图/录像/AI对话文本（outputs/）与基准输出
+outputs/
 bench_output/
 
 # Environment
@@ -79,9 +78,12 @@ data.db-wal
 Thumbs.db
 .DS_Store
 
-# mediamtx（本地 RTSP 服务器，第三方工具二进制 + 自动生成的 TLS 证书）
-mediamtx/mediamtx.exe
-mediamtx/auto.crt
-mediamtx/auto.key
+# tools/mediamtx（本地 RTSP 服务器，第三方二进制 + 自动生成的 TLS 证书；yml/License 文本提交）
+tools/mediamtx/mediamtx.exe
+tools/mediamtx/auto.crt
+tools/mediamtx/auto.key
+
+# tools/ffmpeg（本地自带 ffmpeg，第三方工具二进制）
+tools/ffmpeg/
 
 

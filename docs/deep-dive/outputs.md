@@ -14,17 +14,17 @@
 - **用途**：**排障第一手资料**——启动是否成功、模型是否加载、AI 是否在调用、哪里报错。
 - **清理**：`Z_script\clean_outputs.ps1` 第 1 步（`*.log`）。删掉后重启会重新生成。
 
-### 2. `captures/` — 网页截图
+### 2. `outputs/images/` — 网页截图（原 `captures/`）
 
-- **来源**：网页「📷 截图」按钮 → `POST /capture_frame`（`app.py` 275 行）→ `cv2.imwrite(captures/capture_{时间戳}.jpg)`。
+- **来源**：网页「📷 截图」按钮 → `POST /capture_frame` → `cv2.imwrite(outputs/images/capture_{时间戳}.jpg)`。
 - **内容**：当前**最新处理帧**（`last_processed_frame`，即经过增强/AI 叠加后的画面）的 JPEG 快照。
 - **用途**：保存现场证据，事后回看鱼群密度、病害、水质异常；也常被拿去当训练/演示素材。
 - **清理**：`Z_script\clean_outputs.ps1` 第 2 步（整目录删除）。
 
-### 3. `recordings/` — 网页录像
+### 3. `outputs/videos/` — 网页录像（原 `recordings/`）
 
-- **来源**：网页「⏺ 录制」按钮 → `POST /start_recording`（`app.py` 285 行）→ `cv2.VideoWriter` 尝试 `mp4v → XVID → avc1` 编码；录制期间在视频流线程里把**处理后的帧** `video_writer.write(display_frame)` 写入（`app.py` 86-88 行）；「停止」→ `/stop_recording` 释放 writer。
-- **内容**：`record_{时间戳}.mp4`，30 FPS，编码后的**增强/AI 叠加画面**（非原始流）。
+- **来源**：网页「⏺ 录制」按钮 → `POST /start_recording` → `cv2.VideoWriter` 尝试 `mp4v → XVID → avc1` 编码；录制期间在视频流线程里把**处理后的帧** `video_writer.write(display_frame)` 写入；「停止」→ `/stop_recording` 释放 writer。
+- **内容**：`record_{时间戳}.mp4`（存于 `outputs/videos/`），30 FPS，编码后的**增强/AI 叠加画面**（非原始流）。
 - **用途**：录制可疑时段做回放分析、喂给标注工具做训练数据集。
 - **清理**：`Z_script\clean_outputs.ps1 -KeepRecordings N` 保留最新 N 个，否则整目录删。
 
@@ -37,11 +37,18 @@
 - **用途**：网页端**传感器趋势图**（`get_sensor_history` 取最近 120 分钟）、异常事件列表（`get_events`）。
 - **注意**：属**有价值历史数据**，默认清理**不删除**；`Z_script\clean_outputs.ps1 -All` 才会连 `-wal/-shm` 一起删。删后传感器图/事件从零开始。
 
+### 5. `outputs/chats/` — AI 对话 / 诊断报告记录（新增）
+
+- **来源**：AI 对话（`/chat_ai_stream`、`/chat_ai`）与诊断报告（`/get_ai_advice_stream`、`/get_ai_advice`）**每次完成后自动落盘**为 Markdown（`app.py` 的 `_save_exchange_md`）。
+- **内容**：`chat_{时间戳}.md` / `report_{时间戳}.md`，含时间、类型、所用模型、环境快照（报告）、用户提问与完整回复。
+- **用途**：网页「记录回看」数据源；人工复盘对话/报告；后续"记忆/参考"功能的原始文本来源。
+- **清理**：属**有价值历史**，默认保留；`Z_script\clean_outputs.ps1 -All` 才会删除整个目录。
+
 ---
 
 ## 二、基准测试与验证输出（`scripts/` 产生）
 
-### 5. `bench_output/` — 性能基准 + ONNX 验证
+### 6. `bench_output/` — 性能基准 + ONNX 验证
 
 - **来源**：
   - `scripts/bench_full.py` → `bench_output/bench_full_result.json`：用 `test_video_2.mp4` 取 100 帧（5 帧预热），遍历**全部 9 个模型 × 增强开关（无增强 / 开 WWE-UIE）**组合，测单帧耗时 / FPS / 检出数。
@@ -59,13 +66,13 @@
 
 ## 三、模型训练 / 导出产物
 
-### 6. `WWE-UIE/output/.../best_model.pth` — 增强模型权重
+### 7. `WWE-UIE/output/.../best_model.pth` — 增强模型权重
 
 - **来源**：`scripts/finetune_enhancer.py`（或 WWE-UIE 仓库的 `train.py`）微调训练，产物落在 `WWE-UIE/output/Fishery_WWE_UIEB/UIEB/{时间或描述}/best_model.pth`（含训练日志、checkpoint）。
 - **用途**：**运行时被 `core/enhancer.py` 自动加载**——启动时扫描该目录、取**最新子目录**的 `best_model.pth` 作为水下增强权重（见 `app.log` 里的加载路径）。**动它会影响图像增强效果**。
 - **清理**：一般不清理（模型权重）。想回退/重训可整理子目录，但需保证至少留一个有效权重。
 
-### 7. `models/wwe_uie.onnx` — 增强模型 ONNX 导出
+### 8. `models/wwe_uie.onnx` — 增强模型 ONNX 导出
 
 - **来源**：`scripts/export_wwe_uie_onnx.py` 把 `best_model.pth` 导出为 ONNX（`models/wwe_uie.onnx`）。
 - **用途**：无 PyTorch 依赖的 onnxruntime 部署推理（与 PT 版增强结果一致性由 `verify_wwe_uie_onnx.py` 校验）。
@@ -87,7 +94,7 @@
 
 ## 五、Python 运行时缓存
 
-### 8. `__pycache__/`
+### 9. `__pycache__/`
 
 - **来源**：Python 解释器自动生成的字节码缓存（各包/模块目录下）。
 - **用途**：加速 `import`，无业务价值，可随时删除。
@@ -108,9 +115,9 @@
 
 | 目标 | 命令 | 影响 |
 |------|------|------|
-| 日志 + 截图 + 录像 + 基准 + 缓存 | `Z_script\clean_outputs.ps1` | 常见运行垃圾，可安全清 |
+| 日志 + 截图/录像 + 基准 + 缓存 | `Z_script\clean_outputs.ps1` | 常见运行垃圾，可安全清 |
 | 保留最新 N 个录像 | `Z_script\clean_outputs.ps1 -KeepRecordings 3` | 录像留 3 个 |
 | 预览将删内容 | `Z_script\clean_outputs.ps1 -WhatIf` | 不真删 |
-| **连历史数据一起删** | `Z_script\clean_outputs.ps1 -All` | 额外删 `data.db`（传感器/事件历史归零） |
+| **连历史数据一起删** | `Z_script\clean_outputs.ps1 -All` | 额外删 `data.db` + `outputs/chats`（传感器/事件/对话历史归零） |
 
 > 红线：**不会**也不应删除 `.venv/`、`models/`、源码、`WWE-UIE/output` 权重、`test_video*.mp4`。

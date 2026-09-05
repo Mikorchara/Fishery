@@ -135,10 +135,10 @@ if ($ffmpeg) {
     Emit "FAIL" "ffmpeg 可用" "未找到 ffmpeg（项目内 tools\ffmpeg\bin 或系统 PATH 均无），推流/H.264 必需"
 }
 
-if (Test-Path (Join-Path $Root "tools\mediamtx\mediamtx.exe")) {
+if (Test-Path (Join-Path $Root "mediamtx\mediamtx.exe")) {
     Emit "PASS" "mediamtx.exe 存在"
 } else {
-    Emit "FAIL" "mediamtx.exe 存在" "缺少 tools\mediamtx\mediamtx.exe（本地 RTSP 服务器）"
+    Emit "FAIL" "mediamtx.exe 存在" "缺少 mediamtx\mediamtx.exe（本地 RTSP 服务器）"
 }
 
 $nvidiaSmi = Get-Command nvidia-smi -ErrorAction SilentlyContinue

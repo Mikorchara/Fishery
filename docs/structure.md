@@ -10,8 +10,7 @@ Fishery_Project/
 │   ├── start_pc_camera.ps1   # 电脑内置摄像头启动
 │   ├── start_usb_camera.ps1  # 外接 USB 摄像头启动
 │   ├── check_env.ps1         # 环境就绪自检（只读）
-│   ├── clean_outputs.ps1     # 清理运行产出
-│   └── export_drawio.ps1     # drawio 批量导出（自 scripts/ 迁入）
+│   └── clean_outputs.ps1     # 清理运行产出
 ├── AGENTS.md               # 项目指南与修改规范
 ├── README.md               # 开发者指南（环境部分已过时，以 BUILD_RUN.md 为准）
 ├── .gitignore              # Git 忽略规则
@@ -41,9 +40,14 @@ Fishery_Project/
 │   └── js/
 │       └── marked.min.js   # Markdown 渲染库（本地化，避免依赖 CDN 被墙导致不渲染）
 │
-├── mediamtx/
-│   ├── mediamtx.exe        # 本地 RTSP 服务器（gitignore，不提交）
-│   └── mediamtx.yml        # RTSP 服务器配置
+├── tools/                  # 第三方工具
+│   ├── mediamtx/           # 本地 RTSP 服务器
+│   │   ├── mediamtx.exe    # （gitignore，不提交）
+│   │   └── mediamtx.yml    # RTSP 服务器配置
+│   └── ffmpeg/
+│       └── bin/ffmpeg.exe  # 本地自带 ffmpeg（gitignore；脚本优先使用，缺省回退 PATH）
+│
+├── outputs/                # 运行产物（gitignore）：images 截图 / videos 录像 / chats AI 对话文本
 │
 ├── models/                 # 模型权重（.pt/.onnx/.om，全部 gitignore）
 │   └── sam2_hiera_t.yaml   # SAM2 配置文件（文本，提交）

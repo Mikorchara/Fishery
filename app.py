@@ -63,12 +63,14 @@ perf_state = {"fps": 0.0, "last_update": 0}  # 性能快照，frame_processor �
 # 注册 H.264 WebSocket
 register_ws(sock, video_stream, lambda: create_frame_processor(system_state, enhancer, ai_detector, perf_state))
 
-# 预创建输出目录
+# 预创建输出目录（统一放 outputs/：images 截图 / videos 录像 / chats AI 对话文本）
 ROOT = os.path.dirname(os.path.abspath(__file__))
-CAPTURES_DIR = os.path.join(ROOT, 'captures')
-RECORDINGS_DIR = os.path.join(ROOT, 'recordings')
-os.makedirs(CAPTURES_DIR, exist_ok=True)
-os.makedirs(RECORDINGS_DIR, exist_ok=True)
+OUTPUTS_DIR = os.path.join(ROOT, 'outputs')
+CAPTURES_DIR = os.path.join(OUTPUTS_DIR, 'images')    # 截图
+RECORDINGS_DIR = os.path.join(OUTPUTS_DIR, 'videos')  # 录像
+CHATS_DIR = os.path.join(OUTPUTS_DIR, 'chats')        # AI 对话/诊断报告 Markdown
+for _d in (CAPTURES_DIR, RECORDINGS_DIR, CHATS_DIR):
+    os.makedirs(_d, exist_ok=True)
 
 
 # -- MJPEG 视频流 --
@@ -283,7 +285,12 @@ def _llm_err_message(e):
 @app.route('/get_ai_advice', methods=['POST'])
 @require_auth
 def get_ai_advice():
-    return jsonify({'advice': llm_advisor.get_advice(mcu_data)})
+    advice = llm_advisor.get_advice(mcu_data)
+    try:
+        _save_exchange_md("report", "", advice, mcu_data)
+    except Exception as e:
+        log.warning("AI 记录落盘失败: %s", e)
+    return jsonify({'advice': advice})
 
 @app.route('/chat_ai', methods=['POST'])
 @require_auth
@@ -294,22 +301,66 @@ def chat_ai():
         if not msg:
             return jsonify({'response': '你想问我什么呢？'}), 400
         log.info("收到用户咨询: %s", msg[:100])
-        return jsonify({'response': llm_advisor.ask_question(msg, mcu_data)})
+        resp = llm_advisor.ask_question(msg, mcu_data)
+        try:
+            _save_exchange_md("chat", msg, resp, mcu_data)
+        except Exception as e:
+            log.warning("AI 记录落盘失败: %s", e)
+        return jsonify({'response': resp})
     except Exception as e:
         return jsonify({'response': f'对话引擎出了一点小状况: {str(e)}'}), 500
 
 
 # -- LLM 流式（打字机）端点：对话与诊断报告走 SSE；旧非流式端点保留作回退 --
 
-def _sse(generator):
-    """把内容生成器包装成 SSE 事件流；出错也推送 done 避免前端一直等。"""
+def _save_exchange_md(kind, question, answer, snapshot=None):
+    """把一轮 AI 交互落盘为 Markdown（outputs/chats/）。kind: chat | report"""
+    if not answer:
+        return None
+    ts_file = time.strftime("%Y%m%d_%H%M%S")
+    ts_disp = time.strftime("%Y-%m-%d %H:%M:%S")
+    prof = llm_settings_cfg.get_active_profile()
+    _model = prof["model"] if prof else _llm_default_triple()[2]
+    lines = [
+        "# AI 记录",
+        "",
+        f"- 时间：{ts_disp}",
+        f"- 类型：{'养殖对话' if kind == 'chat' else '环境诊断报告'}",
+        f"- 模型：{_model}",
+    ]
+    if snapshot:
+        lines.append(
+            f"- 环境快照：水温 {snapshot.get('temp', '--')}℃ / pH {snapshot.get('ph', '--')} / "
+            f"溶氧 {snapshot.get('oxygen', '--')} mg/L"
+        )
+    if question:
+        lines += ["", "## 用户提问", "", question]
+    lines += ["", "## 回复", "", answer, ""]
+    fname = f"{kind}_{ts_file}.md"
+    path = os.path.join(CHATS_DIR, fname)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
+    log.info("AI 记录已保存: %s", path)
+    return fname
+
+
+def _sse(generator, kind=None, question=""):
+    """把内容生成器包装成 SSE 事件流；出错也推送 done 避免前端一直等。
+    kind/question 提供时，流结束会把整轮内容落盘为 Markdown（outputs/chats/）。"""
+    buf = []
     try:
         for piece in generator:
+            buf.append(piece)
             yield "data: " + json.dumps({"delta": piece}, ensure_ascii=False) + "\n\n"
     except Exception as e:
         log.error("SSE 流中断: %s", e)
         yield "data: " + json.dumps({"delta": f"\n\n⚠️ 流式输出中断: {e}"}, ensure_ascii=False) + "\n\n"
     finally:
+        if kind:
+            try:
+                _save_exchange_md(kind, question, "".join(buf), mcu_data)
+            except Exception as e:
+                log.warning("AI 记录落盘失败: %s", e)
         yield "data: " + json.dumps({"done": True}) + "\n\n"
 
 
@@ -321,7 +372,7 @@ def chat_ai_stream():
     if not msg:
         return jsonify({'error': '空消息'}), 400
     log.info("流式咨询: %s", msg[:100])
-    return Response(_sse(llm_advisor.stream_answer(msg, mcu_data)),
+    return Response(_sse(llm_advisor.stream_answer(msg, mcu_data), kind="chat", question=msg),
                     mimetype='text/event-stream',
                     headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
@@ -329,7 +380,7 @@ def chat_ai_stream():
 @app.route('/get_ai_advice_stream', methods=['POST'])
 @require_auth
 def get_ai_advice_stream():
-    return Response(_sse(llm_advisor.stream_advice(mcu_data)),
+    return Response(_sse(llm_advisor.stream_advice(mcu_data), kind="report"),
                     mimetype='text/event-stream',
                     headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 

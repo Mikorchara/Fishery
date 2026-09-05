@@ -30,8 +30,10 @@ pip install -r WWE-UIE/requirements.txt
 
 ### 3. 安装 FFmpeg / mediamtx
 
-- **FFmpeg**：从 https://ffmpeg.org/download.html 下载解压，把 `bin` 加入系统 PATH。
-- **mediamtx**：从 https://github.com/bluenviron/mediamtx/releases 下载解压到 `mediamtx/`（`mediamtx.exe` 不入 git）。
+- **FFmpeg**（二选一，推荐自带版）：
+  - 自带版：把 `ffmpeg.exe` 放到 `tools\ffmpeg\bin\`。`Z_script` 脚本会自动优先使用、找不到再回退系统 PATH（文件不入 git）。
+  - 系统版：下载解压，把 `bin` 加入系统 PATH。
+- **mediamtx**：从 https://github.com/bluenviron/mediamtx/releases 下载解压到 `tools/mediamtx/`（`mediamtx.exe` 不入 git）。
 
 ### 4. 模型文件
 

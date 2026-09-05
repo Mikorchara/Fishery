@@ -27,10 +27,6 @@ $mtx = $null
 $startedMtx = $false
 $ffmpeg = $null
 
-# ffmpeg：优先用项目内自带 (tools\ffmpeg\bin)，找不到回退系统 PATH
-if (Test-Path "$Root\tools\ffmpeg\bin\ffmpeg.exe") { $ffmpegExe = "$Root\tools\ffmpeg\bin\ffmpeg.exe" }
-else { $ffmpegExe = "ffmpeg" }
-
 function Test-Camera {
     param([string]$Name)
     # ffmpeg 把设备清单写 stderr；脚本 $ErrorActionPreference=Stop 下原生 stderr 会抛 NativeCommandError，
@@ -38,7 +34,7 @@ function Test-Camera {
     $prev = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     try {
-        $out = & $ffmpegExe -hide_banner -f dshow -list_devices true -i dummy 2>&1 | Out-String
+        $out = & ffmpeg -hide_banner -f dshow -list_devices true -i dummy 2>&1 | Out-String
     } finally {
         $ErrorActionPreference = $prev
     }
@@ -55,21 +51,21 @@ try {
     # ---------- 1. mediamtx（本地 RTSP 服务器） ----------
     if (Get-NetTCPConnection -LocalPort 8554 -State Listen -ErrorAction SilentlyContinue) {
         Write-Host "[1/3] mediamtx 已在运行 (:8554)，跳过启动" -ForegroundColor Yellow
-    } elseif (Test-Path "$Root\tools\mediamtx\mediamtx.exe") {
+    } elseif (Test-Path "$Root\mediamtx\mediamtx.exe") {
         Write-Host "[1/3] 启动 mediamtx (RTSP 服务器)..." -ForegroundColor Cyan
-        $mtx = Start-Process -FilePath "$Root\tools\mediamtx\mediamtx.exe" `
-            -WorkingDirectory "$Root\tools\mediamtx" -PassThru -WindowStyle Hidden
+        $mtx = Start-Process -FilePath "$Root\mediamtx\mediamtx.exe" `
+            -WorkingDirectory "$Root\mediamtx" -PassThru -WindowStyle Hidden
         $startedMtx = $true
         Start-Sleep -Seconds 2
     } else {
-        throw "找不到 mediamtx.exe：$Root\tools\mediamtx\mediamtx.exe"
+        throw "找不到 mediamtx.exe：$Root\mediamtx\mediamtx.exe"
     }
 
     # ---------- 2. ffmpeg 推摄像头 → RTSP ----------
     # 摄像头输出原始帧，必须实时重编码 H.264（不能用 -c copy / -stream_loop）
     Write-Host "[2/3] ffmpeg 推流摄像头 -> rtsp://127.0.0.1:8554/mystream" -ForegroundColor Cyan
     $argStr = "-hide_banner -loglevel warning -f dshow -video_size $VideoSize -framerate $Fps -i `"video=$DeviceName`" -c:v libx264 -preset veryfast -tune zerolatency -pix_fmt yuv420p -rtsp_transport tcp -f rtsp rtsp://127.0.0.1:8554/mystream"
-    $ffmpeg = Start-Process -FilePath $ffmpegExe -ArgumentList $argStr -PassThru -WindowStyle Hidden
+    $ffmpeg = Start-Process -FilePath "ffmpeg" -ArgumentList $argStr -PassThru -WindowStyle Hidden
     Start-Sleep -Seconds 2
     if ($ffmpeg.HasExited) {
         Write-Host "  [警告] ffmpeg 启动即退出：摄像头可能被其它程序占用，或设备名不对。" -ForegroundColor Yellow
