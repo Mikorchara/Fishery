@@ -16,15 +16,15 @@
 
 ### 2. `outputs/images/` — 网页截图（原 `captures/`）
 
-- **来源**：网页「📷 截图」按钮 → `POST /capture_frame` → `cv2.imwrite(outputs/images/capture_{时间戳}.jpg)`。
-- **内容**：当前**最新处理帧**（`last_processed_frame`，即经过增强/AI 叠加后的画面）的 JPEG 快照。
+- **来源**：网页「📷 截图」按钮 → `POST /capture_frame` → `cv2.imwrite(outputs/images/{时间戳}.jpg)`。
+- **内容**：当前**最新处理帧**（`last_processed_frame`，即经过增强/AI 叠加后的画面）的 JPEG 快照。默认文件名即时间戳，可在记录回看页右键重命名/删除。
 - **用途**：保存现场证据，事后回看鱼群密度、病害、水质异常；也常被拿去当训练/演示素材。
 - **清理**：`Z_script\clean_outputs.ps1` 第 2 步（整目录删除）。
 
 ### 3. `outputs/videos/` — 网页录像（原 `recordings/`）
 
 - **来源**：网页「⏺ 录制」按钮 → `POST /start_recording` → `cv2.VideoWriter` 尝试 `mp4v → XVID → avc1` 编码；录制期间在视频流线程里把**处理后的帧** `video_writer.write(display_frame)` 写入；「停止」→ `/stop_recording` 释放 writer。
-- **内容**：`record_{时间戳}.mp4`（存于 `outputs/videos/`），30 FPS，编码后的**增强/AI 叠加画面**（非原始流）。
+- **内容**：`{时间戳}.mp4`（存于 `outputs/videos/`，默认文件名即时间戳），30 FPS，编码后的**增强/AI 叠加画面**（非原始流）；记录回看页可右键重命名/删除。
 - **用途**：录制可疑时段做回放分析、喂给标注工具做训练数据集。
 - **清理**：`Z_script\clean_outputs.ps1 -KeepRecordings N` 保留最新 N 个，否则整目录删。
 
@@ -41,7 +41,7 @@
 
 - **来源**：AI 对话（`/chat_ai_stream`、`/chat_ai`）与诊断报告（`/get_ai_advice_stream`、`/get_ai_advice`）**每次完成后自动落盘**为 Markdown（`app.py` 的 `_save_exchange_md`）。
 - **内容**：`chat_{时间戳}.md` / `report_{时间戳}.md`，含时间、类型、所用模型、环境快照（报告）、用户提问与完整回复。
-- **用途**：网页「记录回看」数据源；人工复盘对话/报告；后续"记忆/参考"功能的原始文本来源。
+- **用途**：记录回看页左侧「对话记录」已接入（左键查看 / 右键重命名·删除）；人工复盘对话/报告；后续"记忆/参考"功能的原始文本来源。
 - **清理**：属**有价值历史**，默认保留；`Z_script\clean_outputs.ps1 -All` 才会删除整个目录。
 
 ---

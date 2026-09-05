@@ -42,6 +42,11 @@
 | `templates/index.html` | Web 控制台 SPA |
 | `static/` | 前端静态资源（`static/js/marked.min.js` 本地化，避免依赖 CDN 不稳定） |
 
+> **运行产物 & 记录回看**：截图/录像/AI 对话文本统一落盘 `outputs/{images,videos,chats}`（gitignore）；
+> Web 视频区标题栏「记录回看」按钮进入独立视图：左=对话记录（自动存档 .md，左键查看 / 右键重命名·删除），
+> 右=现场记录（图片/视频切换缩略图；左键系统查看器打开、右键重命名·删除）；产物以时间命名。
+> 设计复用见 `scratch/记录回看outputs界面_设计复用.md`。
+
 ---
 
 ### 文档（docs/）

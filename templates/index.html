@@ -269,6 +269,39 @@
         .llm-hint { font-size: 10px; color: var(--text-muted); background: #f8fafc; border: 1px dashed var(--border-color); border-radius: 4px; padding: 6px 8px; }
         .llm-modal-foot { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--border-color); font-size: 12px; }
         .llm-modal-foot .capture-btn { width: auto; }
+
+        /* 记录回看（outputs）视图 */
+        #recordsView { flex: 1; min-height: 0; }
+        .media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+        .media-item { border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; background: #000; cursor: pointer; transition: border-color 0.15s; }
+        .media-item:hover { border-color: #2563eb; }
+        .media-item img, .media-item video { width: 100%; height: 120px; object-fit: cover; display: block; background: #000; }
+        .media-item .cap { padding: 4px 6px; font-size: 10px; color: var(--text-muted); background: var(--panel-bg); border-top: 1px solid var(--border-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .media-tabs { display: flex; gap: 6px; }
+        .media-tabs .capture-btn { width: auto; }
+        .media-tabs .capture-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+        #recordsView .card-body { color: var(--text-main); font-size: 12px; }
+        /* 视频状态放标题旁（避免文字变化挤压右侧按钮导致左右移动） */
+        .video-status { font-size: 11px; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* 对话记录列表 */
+        .chat-list { display: flex; flex-direction: column; gap: 4px; }
+        .chat-item { border: 1px solid var(--border-color); border-radius: 6px; padding: 6px 8px; cursor: pointer; background: #fff; }
+        .chat-item:hover { border-color: #2563eb; }
+        .chat-item.active { border-color: var(--accent); background: #eef4fb; }
+        .chat-item .ci-label { font-size: 12px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .chat-item .ci-sub { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+        /* 对话/报告文本查看 */
+        .chat-reader-body { background: #fff; border: 1px solid var(--border-color); border-radius: 4px; padding: 10px 12px; font-size: 13px; line-height: 1.7; color: var(--text-main); overflow-wrap: break-word; }
+        .chat-reader-body h1 { font-size: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 4px; }
+        .chat-reader-body h2 { font-size: 14px; margin-top: 14px; }
+        .chat-reader-body pre { background: #f8fafc; border: 1px solid var(--border-color); border-radius: 4px; padding: 8px; overflow-x: auto; }
+        .chat-reader-body code { font-family: monospace; font-size: 12px; }
+        .chat-reader-body blockquote { margin: 8px 0; padding: 4px 10px; border-left: 3px solid var(--accent); color: var(--text-muted); background: #f8fafc; }
+        /* 右键菜单 */
+        #ctxMenu { position: fixed; z-index: 3000; background: #fff; border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 4px; min-width: 130px; display: none; }
+        #ctxMenu button { display: block; width: 100%; text-align: left; border: none; background: none; padding: 6px 10px; font-size: 12px; cursor: pointer; }
+        #ctxMenu button:hover { background: #eef4fb; }
+        #ctxMenu .danger:hover { background: #fdecea; color: #b03a2e; }
     </style>
 </head>
 <body>
@@ -288,27 +321,19 @@
     <div class="dashboard">
         <div class="video-section">
             <div class="video-header">
-                <span>视频监控画面</span>
-                <div style="display:flex; align-items:center; gap:10px;">
+                <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+                    <span>视频监控画面</span>
+                    <span id="statusIndicator" class="video-status" style="color: var(--success); font-weight: 500;">连接正常 | 推理就绪</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                    <button class="capture-btn" onclick="enterRecordsView()" title="查看截图 / 录像 / 对话记录（outputs 记录回看）">记录回看</button>
                     <button class="capture-btn" onclick="captureFrame()" title="保存当前帧">📷 截图</button>
-                    <button class="capture-btn" id="recordBtn" onclick="toggleRecording()" title="录制视频">⏺ 录制</button>
-                    <span id="statusIndicator" style="color: var(--success); font-weight: 500;">连接正常 | 推理就绪</span>
+                    <button class="capture-btn" id="recordBtn" onclick="toggleRecording()" title="录制视频" style="width:78px;">⏺ 录制</button>
                 </div>
             </div>
             <div class="video-wrapper">
                 <video id="videoPlayer" autoplay muted playsinline style="display:none; max-width:100%; max-height:100%; object-fit:contain;"></video>
                 <img id="fallbackImg" src="/video_feed" alt="等待视频流接入..." style="max-width:100%; max-height:100%; object-fit:contain;">
-            </div>
-
-            <!-- 记录回看：预留区域（待接入 截图/录像/AI 对话历史 浏览），位置待用户确认 -->
-            <div class="card" data-collapsible style="margin-top:8px; padding:8px; flex-shrink:0;">
-                <div class="card-head" data-toggle>
-                    <h3>记录回看</h3>
-                    <button class="card-toggle" title="折叠/展开">−</button>
-                </div>
-                <div class="card-body" style="color: var(--text-muted); font-size: 12px; line-height: 1.6;">
-                    预留区域：将展示 截图 / 录像 / AI 对话历史（待接入）
-                </div>
             </div>
         </div>
 
@@ -409,7 +434,53 @@
         </div>
     </div>
 
+    <!-- 记录回看视图（outputs：对话记录 / 现场记录） -->
+    <div id="recordsView" style="display:none; gap:10px; padding:0 10px 10px;">
+        <!-- 左：对话记录列表 -->
+        <div class="card" data-collapsible style="flex:0 0 300px; min-width:220px; min-height:0; display:flex; flex-direction:column;">
+            <div class="card-head" data-toggle>
+                <h3>对话记录</h3>
+                <button class="card-toggle" title="折叠/展开">−</button>
+            </div>
+            <div class="card-body" style="flex:1; overflow-y:auto; min-height:0; padding:6px;">
+                <div id="chatList" class="chat-list"></div>
+            </div>
+        </div>
+        <!-- 右：媒体列表 或 对话文本查看 -->
+        <div class="card" style="flex:1; min-height:0; display:flex; flex-direction:column;">
+            <!-- 面板 A：图片/视频列表 -->
+            <div id="mediaPane" style="flex:1; min-height:0; display:flex; flex-direction:column;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                    <h3 style="flex:1; margin:0;">现场记录</h3>
+                    <div class="media-tabs">
+                        <button id="tabImages" class="capture-btn active" onclick="switchMediaTab('images')">图片</button>
+                        <button id="tabVideos" class="capture-btn" onclick="switchMediaTab('videos')">视频</button>
+                    </div>
+                    <button class="capture-btn" onclick="exitRecordsView()" style="width:auto;" title="返回实时监控">返回监控</button>
+                </div>
+                <div style="flex:1; overflow-y:auto; min-height:0;">
+                    <div id="mediaGrid" class="media-grid"></div>
+                </div>
+            </div>
+            <!-- 面板 B：对话/报告文本查看 -->
+            <div id="chatPane" style="display:none; flex:1; min-height:0; flex-direction:column;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                    <h3 style="flex:1; margin:0;" id="chatPaneTitle">对话记录</h3>
+                    <button class="capture-btn" onclick="exitChatReader()" style="width:auto;">返回记录列表</button>
+                    <button class="capture-btn" onclick="exitRecordsView()" style="width:auto;" title="返回实时监控">返回监控</button>
+                </div>
+                <div id="chatReaderBody" class="chat-reader-body" style="flex:1; overflow-y:auto; min-height:0;"></div>
+            </div>
+        </div>
+    </div>
+
     <div class="capture-toast" id="captureToast">✅ 截图已保存</div>
+
+    <!-- 对话记录右键菜单（重命名/删除） -->
+    <div id="ctxMenu">
+        <button onclick="ctxRename()">重命名</button>
+        <button class="danger" onclick="ctxDelete()">删除</button>
+    </div>
 
     <script>
         // 全局认证 Token
@@ -918,6 +989,198 @@
                 btn.title = focus ? '退出专注模式，恢复完整布局' : '专注模式：隐藏其他区域，对话区占满全屏';
             }
             if (focus) messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // --- 记录回看视图（outputs：对话记录 / 截图 / 录像） ---
+        var mediaData = { images: [], videos: [] };
+        var mediaTab = 'images';
+        var chatItems = [];
+        var activeChatName = null;
+        function _escHtml(s) {
+            return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        }
+        function enterRecordsView() {
+            if (document.body.classList.contains('chat-focus')) toggleChatFocus();
+            document.querySelector('.dashboard').style.display = 'none';
+            document.getElementById('alarmBanner').style.display = 'none';
+            document.getElementById('recordsView').style.display = 'flex';
+            exitChatReader();          // 回到媒体列表面板
+            loadMediaList();
+            loadChatList();
+        }
+        function exitRecordsView() {
+            document.getElementById('recordsView').style.display = 'none';
+            document.querySelector('.dashboard').style.display = 'flex';
+            document.getElementById('alarmBanner').style.display = '';
+        }
+        // --- 对话记录：命名 / 列表 / 查看 ---
+        function chatDisplayLabel(item) {
+            var m = /^(chat|report)_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.md$/.exec(item.name);
+            if (m) return m[2] + '-' + m[3] + '-' + m[4] + ' ' + m[5] + ':' + m[6];   // 默认名 = 时间（精确到分钟）
+            return item.name.replace(/\.md$/, '');                                      // 重命名后显示自定义名
+        }
+        function chatSubText(item) {
+            var kind = /^report_/.test(item.name) ? '诊断报告' : (/^chat_/.test(item.name) ? '对话' : '对话');
+            return kind + ' · ' + item.time_str;
+        }
+        function loadChatList() {
+            authFetch('/media_api/chats').then(function(r) { return r.json(); }).then(function(d) {
+                chatItems = (d && d.items) || [];
+                renderChatList();
+            }).catch(function(e) { console.error('chats 列表失败', e); });
+        }
+        function renderChatList() {
+            var box = document.getElementById('chatList');
+            if (!chatItems.length) {
+                box.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:24px 8px; line-height:1.7;">暂无对话记录。<br>在实时监控页与 AI 对话 / 生成诊断报告后会自动存档到这里。</div>';
+                return;
+            }
+            var seen = {};
+            box.innerHTML = chatItems.map(function(it) {
+                var label = chatDisplayLabel(it);
+                seen[label] = (seen[label] || 0) + 1;
+                if (seen[label] > 1) label += '  #' + seen[label];   // 同分钟多条自动加序号
+                var active = (it.name === activeChatName) ? ' active' : '';
+                return '<div class="chat-item' + active + '" data-name="' + _escHtml(it.name) + '" title="左键查看，右键可重命名/删除">' +
+                       '<div class="ci-label">' + _escHtml(label) + '</div>' +
+                       '<div class="ci-sub">' + _escHtml(chatSubText(it)) + '</div></div>';
+            }).join('');
+        }
+        function openChat(name) {
+            activeChatName = name;
+            renderChatList();
+            authFetch('/media_api/chat?name=' + encodeURIComponent(name)).then(function(r) { return r.json(); }).then(function(d) {
+                if (d.error) { alert('打开失败：' + d.error); return; }
+                document.getElementById('chatPaneTitle').textContent = chatDisplayLabel({ name: name });
+                var body = document.getElementById('chatReaderBody');
+                try { body.innerHTML = marked.parse(d.content); } catch (e) { body.textContent = d.content; }
+                document.getElementById('mediaPane').style.display = 'none';
+                var cp = document.getElementById('chatPane');
+                cp.style.display = 'flex';
+                body.scrollTop = 0;
+            }).catch(function(e) { alert('读取失败：' + e); });
+        }
+        function exitChatReader() {
+            document.getElementById('chatPane').style.display = 'none';
+            document.getElementById('mediaPane').style.display = 'flex';
+            if (typeof renderMediaGrid === 'function') renderMediaGrid();
+        }
+        // --- 右键菜单（对话记录 & 图片/视频 共用：重命名 / 删除） ---
+        var ctxKind = null;   // 'chat' | 'media'
+        var ctxTarget = null; // 文件名（含扩展）
+        var ctxCat = null;    // media 时目录：images | videos
+        function showCtxMenu(ev, kind, name, cat) {
+            ev.preventDefault();
+            ctxKind = kind; ctxTarget = name; ctxCat = cat || null;
+            var menu = document.getElementById('ctxMenu');
+            menu.style.display = 'block';
+            menu.style.left = Math.min(ev.clientX, window.innerWidth - 150) + 'px';
+            menu.style.top = Math.min(ev.clientY, window.innerHeight - 96) + 'px';
+        }
+        function hideCtxMenu() { document.getElementById('ctxMenu').style.display = 'none'; ctxKind = ctxTarget = ctxCat = null; }
+        function ctxRename() {
+            var kind = ctxKind, name = ctxTarget, cat = ctxCat; hideCtxMenu();
+            if (!name) return;
+            var base = name.replace(/\.[^.]+$/, '');
+            var msg = kind === 'chat' ? '重命名对话记录（将保存为 .md）：' : (cat === 'videos' ? '重命名视频（保留原格式）：' : '重命名图片（保留原格式）：');
+            var input = prompt(msg, base);
+            if (input === null) return;
+            input = input.trim();
+            if (!input) return;
+            var url = kind === 'chat' ? '/media_api/chat/rename' : '/media_api/file/rename';
+            var body = kind === 'chat' ? { old: name, new: input } : { cat: cat, old: name, new: input };
+            authFetch(url, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            }).then(function(r) { return r.json(); }).then(function(d) {
+                if (d.status !== 'success') { alert('重命名失败：' + (d.message || '')); return; }
+                if (kind === 'chat') { if (activeChatName === name) activeChatName = d.name; loadChatList(); }
+                else loadMediaList();
+            }).catch(function(e) { alert('重命名失败：' + e); });
+        }
+        function ctxDelete() {
+            var kind = ctxKind, name = ctxTarget, cat = ctxCat; hideCtxMenu();
+            if (!name) return;
+            if (!confirm('确定删除？\n' + name)) return;
+            var url = kind === 'chat' ? '/media_api/chat/delete' : '/media_api/file/delete';
+            var body = kind === 'chat' ? { name: name } : { cat: cat, name: name };
+            authFetch(url, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            }).then(function(r) { return r.json(); }).then(function(d) {
+                if (d.status !== 'success') { alert('删除失败：' + (d.message || '')); return; }
+                if (kind === 'chat') { if (activeChatName === name) { activeChatName = null; exitChatReader(); } loadChatList(); }
+                else loadMediaList();
+            }).catch(function(e) { alert('删除失败：' + e); });
+        }
+        // 名称显示：时间命名格式化为可读时间（图片/视频缩略图下方标签）
+        function mediaNameLabel(name) {
+            var m = /^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})\.(\w+)$/.exec(name);
+            if (m) return m[1] + '-' + m[2] + '-' + m[3] + ' ' + m[4] + ':' + m[5] + ':' + m[6];
+            return name.replace(/\.[^.]+$/, '');
+        }
+        // 列表事件：对话（左键查看 / 右键菜单）
+        document.getElementById('chatList').addEventListener('click', function(ev) {
+            var it = ev.target.closest ? ev.target.closest('.chat-item') : null;
+            if (!it) return;
+            openChat(it.getAttribute('data-name'));
+        });
+        document.getElementById('chatList').addEventListener('contextmenu', function(ev) {
+            var it = ev.target.closest ? ev.target.closest('.chat-item') : null;
+            if (!it) return;
+            showCtxMenu(ev, 'chat', it.getAttribute('data-name'));
+        });
+        // 图片/视频（左键系统打开 / 右键菜单）
+        document.getElementById('mediaGrid').addEventListener('contextmenu', function(ev) {
+            var it = ev.target.closest ? ev.target.closest('.media-item') : null;
+            if (!it) return;
+            showCtxMenu(ev, 'media', it.getAttribute('data-name'), it.getAttribute('data-cat'));
+        });
+        // 点击空白 / Esc 关闭菜单
+        document.addEventListener('click', function(ev) {
+            var m = document.getElementById('ctxMenu');
+            if (m.style.display === 'block' && !m.contains(ev.target)) hideCtxMenu();
+        });
+        document.addEventListener('keydown', function(ev) { if (ev.key === 'Escape') hideCtxMenu(); });
+        function switchMediaTab(tab) {
+            mediaTab = tab;
+            document.getElementById('tabImages').classList.toggle('active', tab === 'images');
+            document.getElementById('tabVideos').classList.toggle('active', tab === 'videos');
+            renderMediaGrid();
+        }
+        function loadMediaList() {
+            authFetch('/media_api/list').then(function(r) { return r.json(); }).then(function(d) {
+                mediaData = d || { images: [], videos: [] };
+                renderMediaGrid();
+            }).catch(function(e) { console.error('media list 失败', e); });
+        }
+        function renderMediaGrid() {
+            var grid = document.getElementById('mediaGrid');
+            var items = mediaData[mediaTab] || [];
+            if (!items.length) {
+                grid.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:40px 10px;">暂无' + (mediaTab === 'images' ? '截图' : '录像') + '，可在实时监控页点「截图/录制」生成。</div>';
+                return;
+            }
+            grid.innerHTML = items.map(function(it) {
+                var med = mediaTab === 'images'
+                    ? '<img src="' + it.url + '" loading="lazy" alt="">'
+                    : '<video src="' + it.url + '" preload="metadata" muted playsinline></video>';
+                return '<div class="media-item" data-cat="' + mediaTab + '" data-name="' + _escHtml(it.name) + '" title="左键：系统查看器打开；右键：重命名/删除">' + med + '<div class="cap">' + _escHtml(mediaNameLabel(it.name)) + '</div></div>';
+            }).join('');
+        }
+        document.getElementById('mediaGrid').addEventListener('click', function(ev) {
+            var it = ev.target.closest ? ev.target.closest('.media-item') : null;
+            if (!it) return;
+            openMediaFile(it.getAttribute('data-cat'), it.getAttribute('data-name'));
+        });
+        function openMediaFile(cat, name) {
+            authFetch('/media/open', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cat: cat, name: name })
+            }).then(function(r) { return r.json(); }).then(function(d) {
+                if (d.status !== 'success') alert('打开失败：' + (d.message || ''));
+            }).catch(function(e) { alert('打开失败：' + e); });
         }
 
     (function() {

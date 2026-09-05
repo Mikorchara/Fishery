@@ -7,7 +7,7 @@ import threading
 import logging
 import sys
 from functools import wraps
-from flask import Flask, render_template, Response, jsonify, request
+from flask import Flask, render_template, Response, jsonify, request, send_from_directory
 from flask_sock import Sock
 
 # ---- 日志 ----
@@ -514,8 +514,8 @@ def capture_frame():
     if frame is None:
         return jsonify({'status': 'error', 'message': '暂无已处理帧'}), 500
     ts = time.strftime("%Y%m%d_%H%M%S")
-    cv2.imwrite(os.path.join(CAPTURES_DIR, f"capture_{ts}.jpg"), frame)
-    return jsonify({'status': 'success', 'filename': f"capture_{ts}.jpg"})
+    cv2.imwrite(os.path.join(CAPTURES_DIR, f"{ts}.jpg"), frame)   # 直接用时间命名
+    return jsonify({'status': 'success', 'filename': f"{ts}.jpg"})
 
 @app.route('/start_recording', methods=['POST'])
 @require_auth
@@ -529,7 +529,7 @@ def start_recording():
             return jsonify({'status': 'error', 'message': '无法获取视频帧'}), 500
         h, w = frame.shape[:2]
         ts = time.strftime('%Y%m%d_%H%M%S')
-        filename = f"record_{ts}.mp4"
+        filename = f"{ts}.mp4"   # 直接用时间命名
         for codec in ['mp4v', 'XVID', 'avc1']:
             fourcc = cv2.VideoWriter_fourcc(*codec)
             video_writer = cv2.VideoWriter(os.path.join(RECORDINGS_DIR, filename), fourcc, 30.0, (w, h))
@@ -553,6 +553,203 @@ def stop_recording():
             video_writer.release()
             video_writer = None
         return jsonify({'status': 'success'})
+
+
+# -- 记录回看（outputs 媒体浏览：截图/录像；对话存档在 outputs/chats，页面待接入） --
+
+_MEDIA_DIRS = {"images": CAPTURES_DIR, "videos": RECORDINGS_DIR}
+_MEDIA_EXTS = {"images": (".jpg", ".jpeg", ".png"), "videos": (".mp4", ".avi", ".mov", ".mkv")}
+
+
+@app.route('/media_api/list')
+@require_auth
+def media_list():
+    """返回 outputs 截图/录像清单（时间倒序），供「记录回看」页渲染缩略图。"""
+    out = {"images": [], "videos": []}
+    for cat, base in _MEDIA_DIRS.items():
+        try:
+            names = sorted(os.listdir(base), reverse=True)
+        except OSError:
+            names = []
+        for fn in names:
+            if os.path.splitext(fn)[1].lower() not in _MEDIA_EXTS[cat]:
+                continue
+            p = os.path.join(base, fn)
+            if not os.path.isfile(p):
+                continue
+            st = os.stat(p)
+            out[cat].append({
+                "name": fn,
+                "url": f"/media/{cat}/{fn}",
+                "size": st.st_size,
+                "time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(st.st_mtime)),
+            })
+    return jsonify(out)
+
+
+@app.route('/media/<cat>/<fname>')
+def media_file(cat, fname):
+    """提供截图/录像文件访问（<img>/<video> 缩略图用；本机演示故不加鉴权）。"""
+    base = _MEDIA_DIRS.get(cat)
+    if not base or os.path.basename(fname) != fname:  # 防目录穿越
+        return "not found", 404
+    return send_from_directory(base, fname)
+
+
+@app.route('/media/open', methods=['POST'])
+@require_auth
+def media_open():
+    """用系统默认程序（Windows 自带查看器/播放器）打开指定截图/录像。"""
+    data = request.get_json(silent=True) or {}
+    cat, name = data.get("cat"), data.get("name", "")
+    base = _MEDIA_DIRS.get(cat)
+    if not base or not name or os.path.basename(name) != name:
+        return jsonify({"status": "error", "message": "参数非法"}), 400
+    p = os.path.join(base, name)
+    if not os.path.isfile(p):
+        return jsonify({"status": "error", "message": "文件不存在"}), 404
+    try:
+        os.startfile(p)  # Windows 默认查看器打开（图片查看器 / 播放器）
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+# -- 图片/视频 文件 删除 / 重命名（供缩略图右键菜单） --
+
+@app.route('/media_api/file/delete', methods=['POST'])
+@require_auth
+def media_file_delete():
+    data = request.get_json(silent=True) or {}
+    cat, name = data.get("cat"), data.get("name", "")
+    base = _MEDIA_DIRS.get(cat)
+    if not base or not name or os.path.basename(name) != name:
+        return jsonify({"status": "error", "message": "参数非法"}), 400
+    p = os.path.join(base, name)
+    if not os.path.isfile(p):
+        return jsonify({"status": "error", "message": "文件不存在"}), 404
+    try:
+        os.remove(p)
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/media_api/file/rename', methods=['POST'])
+@require_auth
+def media_file_rename():
+    data = request.get_json(silent=True) or {}
+    cat = data.get("cat")
+    old_raw, new_raw = data.get("old", ""), data.get("new", "")
+    base = _MEDIA_DIRS.get(cat)
+    # 拒绝带路径分隔的输入（防穿越：显式报错，而非 os.path.basename 静默剥壳）
+    if not base or os.path.basename(old_raw) != old_raw or os.path.basename(new_raw) != new_raw:
+        return jsonify({"status": "error", "message": "参数非法"}), 400
+    old, new = old_raw, new_raw
+    old_ext = os.path.splitext(old)[1].lower()   # 保留原扩展名（缩略图/播放依赖）
+    new = os.path.splitext(new)[0] + old_ext
+    if old == new:
+        return jsonify({"status": "error", "message": "名称未变化"}), 400
+    if any(c in new for c in ('/', '\\', ':', '*', '?', '"', '<', '>', '|')):
+        return jsonify({"status": "error", "message": "名称包含非法字符"}), 400
+    src, dst = os.path.join(base, old), os.path.join(base, new)
+    if not os.path.isfile(src):
+        return jsonify({"status": "error", "message": "源文件不存在"}), 404
+    if os.path.exists(dst):
+        return jsonify({"status": "error", "message": "已存在同名文件"}), 400
+    try:
+        os.rename(src, dst)
+        return jsonify({"status": "success", "name": new})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+# -- 对话记录（outputs/chats 的 Markdown）管理 --
+
+@app.route('/media_api/chats')
+@require_auth
+def chats_list():
+    """列出 outputs/chats 下的对话/报告 .md（按修改时间倒序）。"""
+    items = []
+    try:
+        names = os.listdir(CHATS_DIR)
+    except OSError:
+        names = []
+    for fn in names:
+        if not fn.lower().endswith(".md"):
+            continue
+        p = os.path.join(CHATS_DIR, fn)
+        if not os.path.isfile(p):
+            continue
+        st = os.stat(p)
+        items.append({
+            "name": fn,
+            "mtime": int(st.st_mtime),
+            "time_str": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(st.st_mtime)),
+            "size": st.st_size,
+        })
+    items.sort(key=lambda x: x["mtime"], reverse=True)
+    return jsonify({"items": items})
+
+
+@app.route('/media_api/chat')
+@require_auth
+def chat_view():
+    """读取单个对话/报告 .md 内容（返回 Markdown 原文）。"""
+    name = request.args.get("name", "")
+    if not name or os.path.basename(name) != name or not name.lower().endswith(".md"):
+        return jsonify({"error": "参数非法"}), 400
+    p = os.path.join(CHATS_DIR, name)
+    if not os.path.isfile(p):
+        return jsonify({"error": "文件不存在"}), 404
+    with open(p, "r", encoding="utf-8") as f:
+        return jsonify({"name": name, "content": f.read()})
+
+
+@app.route('/media_api/chat/delete', methods=['POST'])
+@require_auth
+def chat_delete():
+    data = request.get_json(silent=True) or {}
+    name = data.get("name", "")
+    if not name or os.path.basename(name) != name or not name.lower().endswith(".md"):
+        return jsonify({"status": "error", "message": "参数非法"}), 400
+    p = os.path.join(CHATS_DIR, name)
+    if not os.path.isfile(p):
+        return jsonify({"status": "error", "message": "文件不存在"}), 404
+    try:
+        os.remove(p)
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route('/media_api/chat/rename', methods=['POST'])
+@require_auth
+def chat_rename():
+    data = request.get_json(silent=True) or {}
+    old_raw, new_raw = data.get("old", ""), data.get("new", "")
+    # 拒绝带路径分隔的输入（防穿越：显式报错，而非静默剥壳）
+    if os.path.basename(old_raw) != old_raw or os.path.basename(new_raw) != new_raw:
+        return jsonify({"status": "error", "message": "参数非法"}), 400
+    old, new = old_raw, new_raw
+    if not old.lower().endswith(".md"):
+        old += ".md"
+    if not new.lower().endswith(".md"):
+        new += ".md"
+    if not old or not new or old == new:
+        return jsonify({"status": "error", "message": "名称未变化"}), 400
+    if any(c in new for c in ('/', '\\', ':', '*', '?', '"', '<', '>', '|')):
+        return jsonify({"status": "error", "message": "名称包含非法字符"}), 400
+    src, dst = os.path.join(CHATS_DIR, old), os.path.join(CHATS_DIR, new)
+    if not os.path.isfile(src):
+        return jsonify({"status": "error", "message": "源文件不存在"}), 404
+    if os.path.exists(dst):
+        return jsonify({"status": "error", "message": "已存在同名文件"}), 400
+    try:
+        os.rename(src, dst)
+        return jsonify({"status": "success", "name": new})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 # -- 启动 --

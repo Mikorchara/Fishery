@@ -2,7 +2,7 @@
 
 ```
 Fishery_Project/
-├── app.py                  # Flask 主入口（“接线员”：路由+鉴权，把请求转发给各模块，自己不干算法活）
+├── app.py                  # Flask 主入口（“接线员”：路由+鉴权；另含截图/录制、记录回看（媒体+对话）端点与对话自动存档）
 ├── config.py               # 全局配置：模型路径、阈值、LLM、编码器、认证
 ├── Z_script/                 # PowerShell 启动/工具脚本（须 UTF-8 with BOM）
 │   ├── start_all.ps1         # 一键启动：本地视频推流 + Flask
